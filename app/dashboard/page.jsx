@@ -5,22 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../utils/supabase';
 
-// --- ENHANCED STATIC MOCK DATA ---
-const upcomingTransactions = [
-  { id: 'up-8', name: "Netflix", category: "Entertainment", amount: "-15.49", date: "Jul 15, 2026", color: "bg-[#e50914]", initial: "N" },
-  { id: 'up-9', name: "GEICO Auto", category: "Insurance", amount: "-125.00", date: "Jul 18, 2026", color: "bg-[#00529b]", initial: "G" },
-  { id: 'up-10', name: "Planet Fitness", category: "Health & Fitness", amount: "-10.00", date: "Jul 20, 2026", color: "bg-[#673ab7]", initial: "P" },
-];
-
-const navItems = [
-  { id: "checking", name: "Checking... 0096", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> },
-  { id: "savings", name: "Savings... 3886", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> },
-  { id: "credit", name: "Credit Cards... 9794", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> },
-  { id: "loans", name: "Loans... 2284", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg> },
-  { id: "rewards", name: "Rewards & Deals", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> },
-  { id: "activity", name: "Recent Activity", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg> },
-];
-
 export default function ClientDashboard() {
   const router = useRouter();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -38,14 +22,53 @@ export default function ClientDashboard() {
   const [isTransferring, setIsTransferring] = useState(false);
   const [isDebitLocked, setIsDebitLocked] = useState(false);
   const [isCreditLocked, setIsCreditLocked] = useState(false);
+  
+  // External Transfer & Debt States
+  const [receiverId, setReceiverId] = useState('');
+  const [description, setDescription] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [targetDebt, setTargetDebt] = useState(null); 
 
+  // Core User & Ledger States
   const [userId, setUserId] = useState(null);
+  const [accountId, setAccountId] = useState(null);
+  const [accountNumber, setAccountNumber] = useState('----');
+  const [savingsAccountNumber, setSavingsAccountNumber] = useState('----');
   const [isLoading, setIsLoading] = useState(true);
   const [accountStatus, setAccountStatus] = useState('active'); 
   const [legalName, setLegalName] = useState('Account Holder'); 
   const [checkingBalance, setCheckingBalance] = useState("0.00");
   const [savingsBalance, setSavingsBalance] = useState("0.00");
+  
   const [transactions, setTransactions] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMoreTxs, setHasMoreTxs] = useState(true);
+  const TX_LIMIT = 15;
+
+  // Dynamic Products States (Empty by default)
+  const [creditAccounts, setCreditAccounts] = useState([]);
+  const [loanAccounts, setLoanAccounts] = useState([]);
+  const [upcomingTxs, setUpcomingTxs] = useState([]);
+  
+  // MOVE IT HERE: Declare the state before using it!
+  const [rewardsBalance, setRewardsBalance] = useState(0); 
+
+  // --- Dynamic Math ---
+  const totalOutflow = transactions.filter(tx => tx.sender_account_id === accountId || tx.type === 'withdrawal').reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const totalInflow = transactions.filter(tx => tx.receiver_account_id === accountId || tx.type === 'deposit').reduce((acc, curr) => acc + Number(curr.amount), 0);
+  
+  const rewardMiles = rewardsBalance; 
+  const rewardValue = rewardMiles * 0.01; 
+
+  // --- Dynamic Sidebar Navigation ---
+  const navItems = [
+    { id: "checking", name: `Checking... ${accountNumber}`, icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> },
+    { id: "savings", name: `Savings... ${savingsAccountNumber}`, icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> },
+    { id: "credit", name: `Credit Cards... ${creditAccounts[0]?.card_number?.slice(-4) || '----'}`, icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> },
+    { id: "loans", name: `Loans... ${loanAccounts[0]?.account_number?.slice(-4) || '----'}`, icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg> },
+    { id: "rewards", name: "Rewards & Deals", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> },
+    { id: "activity", name: "Recent Activity", icon: <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg> },
+  ];
 
   const fetchUserData = async () => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -58,16 +81,52 @@ export default function ClientDashboard() {
       if (profile.legal_name) setLegalName(profile.legal_name);
     }
 
-    const { data: account } = await supabase.from('accounts').select('balance, savings_balance').eq('user_id', user.id).single();
+    const { data: account } = await supabase.from('accounts').select('account_id, account_number, balance, savings_balance, rewards_balance').eq('user_id', user.id).single();
     if (account) {
+      setAccountId(account.account_id);
+      setAccountNumber(account.account_number ? account.account_number.slice(-4) : '----');
+      setSavingsAccountNumber(account.account_number ? account.account_number.slice(-4) : '----'); 
       setCheckingBalance(account.balance);
       setSavingsBalance(account.savings_balance || "0.00");
+      setRewardsBalance(parseFloat(account.rewards_balance || 0));
+      fetchTransactions(account.account_id, 0, true);
     }
 
-    const { data: txs } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    if (txs) setTransactions(txs);
+    const [creditRes, loanRes, scheduledRes] = await Promise.all([
+      supabase.from('credit_accounts').select('*').eq('user_id', user.id),
+      supabase.from('loan_accounts').select('*').eq('user_id', user.id),
+      supabase.from('scheduled_transactions').select('*').eq('user_id', user.id).order('next_date', { ascending: true })
+    ]);
+    
+    if (creditRes.data) setCreditAccounts(creditRes.data);
+    if (loanRes.data) setLoanAccounts(loanRes.data);
+    if (scheduledRes.data) setUpcomingTxs(scheduledRes.data);
 
     setIsLoading(false);
+  };
+
+  const fetchTransactions = async (accId, pageNum, isReset = false) => {
+    const from = pageNum * TX_LIMIT;
+    const to = from + TX_LIMIT - 1;
+    
+    const { data: txs, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(`sender_account_id.eq.${accId},receiver_account_id.eq.${accId}`)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (!error && txs) {
+        if (txs.length < TX_LIMIT) setHasMoreTxs(false);
+        if (isReset) setTransactions(txs);
+        else setTransactions(prev => [...prev, ...txs]);
+    }
+  };
+
+  const loadMoreTransactions = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchTransactions(accountId, nextPage);
   };
 
   useEffect(() => {
@@ -82,7 +141,27 @@ export default function ClientDashboard() {
     return () => { clearTimeout(timer); clearInterval(counter); };
   }, [router]);
 
+  useEffect(() => {
+    if (!accountId) return;
+    const channel = supabase.channel('realtime-banking')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `account_id=eq.${accountId}` }, (payload) => {
+          if (payload.new) {
+              setCheckingBalance(payload.new.balance);
+              setSavingsBalance(payload.new.savings_balance);
+          }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions' }, (payload) => {
+          if (payload.new.sender_account_id === accountId || payload.new.receiver_account_id === accountId) {
+              setTransactions(prev => [payload.new, ...prev]);
+          }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [accountId]);
+
   const handleSecureAction = (actionName) => {
+    setErrorMsg(''); setReceiverId(''); setTransferAmount(''); setDescription('');
     if (accountStatus === 'restricted' && !['lock', 'statement'].includes(actionName)) {
       setActiveModal('restricted');
       return;
@@ -90,7 +169,47 @@ export default function ClientDashboard() {
     setActiveModal(actionName);
   };
 
-  const executeTransfer = async () => {
+  const handlePayDebtModal = (type, item) => {
+    setTargetDebt({
+      type,
+      id: item.id,
+      name: type === 'credit' ? item.card_name : item.loan_name,
+      balance: type === 'credit' ? item.balance : item.current_balance
+    });
+    setErrorMsg(''); setTransferAmount('');
+    setActiveModal('pay_debt');
+  };
+
+  const executeDebtPayment = async (e) => {
+    e.preventDefault();
+    if (!transferAmount || transferAmount <= 0) return;
+    setIsTransferring(true); setErrorMsg('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/client/pay-debt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          sourceAccountId: accountId,
+          debtId: targetDebt.id,
+          debtType: targetDebt.type,
+          amount: parseFloat(transferAmount)
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) setErrorMsg(result.error || 'Payment failed');
+      else {
+        setActiveModal('none');
+        setTransferAmount('');
+        fetchUserData(); 
+      }
+    } catch (err) { setErrorMsg('Network error. Please try again later.'); }
+    finally { setIsTransferring(false); }
+  };
+
+  const executeInternalTransfer = async () => {
     if (!transferAmount || transferAmount <= 0) return;
     setIsTransferring(true);
     
@@ -101,21 +220,40 @@ export default function ClientDashboard() {
     });
 
     await fetchUserData(); 
-    setActiveModal('none');
-    setTransferAmount('');
-    setIsTransferring(false);
+    setActiveModal('none'); setTransferAmount(''); setIsTransferring(false);
+  };
+
+  const handleExternalTransfer = async (e, type) => {
+    e.preventDefault();
+    if (!transferAmount || transferAmount <= 0 || !receiverId) return;
+    setIsTransferring(true); setErrorMsg('');
+
+    try {
+      const endpoint = type === 'wire' ? '/api/client/wire' : '/api/client/zelle';
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderUserId: userId, receiverAccountId: receiverId, amount: parseFloat(transferAmount), description }),
+      });
+      const result = await response.json();
+      if (!response.ok) setErrorMsg(result.error || 'Transfer failed');
+      else {
+        setActiveModal('none');
+        setReceiverId(''); setTransferAmount(''); setDescription('');
+      }
+    } catch (err) { setErrorMsg('Network error. Please try again later.'); } 
+    finally { setIsTransferring(false); }
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const formatTime = (dateString) => new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   const renderTransactionList = (limit = null) => {
-    if (transactions.length === 0) return <div className="p-8 text-center text-gray-400">No recent transactions.</div>;
+    if (transactions.length === 0) return <div className="p-8 text-center text-gray-400 font-bold">No recent transactions.</div>;
     const displayTxs = limit ? transactions.slice(0, limit) : transactions;
     
     return displayTxs.map((tx) => {
       const rawAmount = Number(tx.amount);
-      const isActuallyWithdrawal = tx.type === 'withdrawal' || rawAmount < 0;
+      const isActuallyWithdrawal = tx.sender_account_id === accountId;
       const isTransfer = tx.type === 'transfer';
       const absAmount = Math.abs(rawAmount).toFixed(2);
       
@@ -123,15 +261,15 @@ export default function ClientDashboard() {
       if (isActuallyWithdrawal) { txPrefix = '-'; txColor = 'bg-[#dd0031]'; textColor = 'text-[#dd0031]'; iconChar = '-'; } 
       else if (isTransfer) { txPrefix = '-'; txColor = 'bg-[#0071ce]'; textColor = 'text-[#0071ce]'; iconChar = '⇄'; }
 
-      const description = tx.description || (tx.type === 'deposit' ? 'Online Deposit' : tx.type === 'transfer' ? 'Account Transfer' : 'Card Purchase');
-      const accountName = tx.type === 'transfer' ? 'Multiple Accounts' : '360 Checking (...0096)';
+      const txDescription = tx.description || (tx.type === 'deposit' ? 'Online Deposit' : tx.type === 'transfer' ? 'Account Transfer' : 'Card Purchase');
+      const accountName = tx.type === 'transfer' ? 'Multiple Accounts' : `360 Checking (...${accountNumber})`;
 
       return (
         <div 
           key={tx.id} 
           onClick={() => { 
             setSelectedTx({ 
-              ...tx, txPrefix, txColor, textColor, absAmount, description, account: accountName, 
+              ...tx, txPrefix, txColor, textColor, absAmount, description: txDescription, account: accountName, 
               formattedDate: formatDate(tx.created_at), formattedTime: formatTime(tx.created_at) 
             }); 
             setActiveModal('tx_details'); 
@@ -141,12 +279,12 @@ export default function ClientDashboard() {
           <div className="flex items-center space-x-4">
             <div className={`w-10 h-10 rounded-full ${txColor} text-white flex items-center justify-center font-bold text-xl shadow-sm group-hover:scale-105 transition-transform`}>{iconChar}</div>
             <div>
-              <div className="font-bold text-base text-gray-800 capitalize">{tx.type}</div>
+              <div className="font-bold text-base text-gray-800 capitalize">{txDescription}</div>
               <div className="text-xs text-gray-500 capitalize">{tx.status}</div>
             </div>
           </div>
           <div className="text-right">
-            <div className={`font-semibold text-base ${textColor}`}>{txPrefix}${absAmount}</div>
+            <div className={`font-semibold text-base ${textColor}`}>{txPrefix}{absAmount}</div>
             <div className="text-xs text-gray-500">{formatDate(tx.created_at)}</div>
           </div>
         </div>
@@ -225,13 +363,6 @@ export default function ClientDashboard() {
                 </div>
               </div>
             </div>
-
-            <div className="mt-auto px-6 mb-2">
-               <button className="flex items-center justify-center text-white text-sm font-semibold bg-[#003456] hover:bg-[#002844] w-full px-4 py-3 rounded shadow transition focus:outline-none">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                  Open New Account
-               </button>
-            </div>
           </aside>
 
           <main className="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 bg-[#00426b]">
@@ -240,12 +371,12 @@ export default function ClientDashboard() {
               {activeTab === 'checking' && (
                 <>
                   <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300">
-                    <h2 className="text-xl font-bold text-gray-800 mb-1">360 Checking</h2>
+                    <h2 className="text-xl font-bold text-gray-800 mb-1">360 Checking (...{accountNumber})</h2>
                     <div className="text-[40px] font-bold text-[#004879] leading-none mb-6">
                       ${Number(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="border-t border-gray-100 pt-5 mb-6">
-                      <h2 className="text-xl font-bold text-gray-800 mb-1">360 Savings</h2>
+                      <h2 className="text-xl font-bold text-gray-800 mb-1">360 Savings (...{savingsAccountNumber})</h2>
                       <div className="text-2xl font-bold text-[#004879] leading-none">
                         ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
@@ -269,12 +400,12 @@ export default function ClientDashboard() {
               {activeTab === 'savings' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
                   <h2 className="text-2xl font-bold text-gray-800 mb-1">360 Performance Savings</h2>
-                  <p className="text-gray-500 text-sm mb-6">Account ending in ...3886</p>
+                  <p className="text-gray-500 text-sm mb-6">Account ending in ...{savingsAccountNumber}</p>
                   <div className="bg-[#e8eef3] rounded-lg p-6 mb-8 flex justify-between items-center border border-blue-100">
                     <div>
                       <div className="text-sm text-gray-600 font-bold uppercase tracking-wider mb-1">Available Balance</div>
                       <div className="text-[48px] font-bold text-[#004879] leading-none">
-                         ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
@@ -287,54 +418,69 @@ export default function ClientDashboard() {
 
               {activeTab === 'credit' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
-                  <div className="flex items-start justify-between mb-8 border-b pb-6">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-800">Quicksilver Rewards</h2>
-                      <p className="text-gray-500 text-sm">Card ending in ...9794</p>
+                  {creditAccounts.length > 0 ? creditAccounts.map(credit => (
+                    <div key={credit.id} className="mb-10 border-b pb-6 last:border-b-0">
+                      <div className="flex items-start justify-between mb-8">
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-800">{credit.card_name}</h2>
+                          <p className="text-gray-500 text-sm">Card ending in ...{credit.card_number.slice(-4)}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-8 mb-8">
+                        <div>
+                          <div className="text-sm text-gray-600 font-bold mb-1">Current Balance</div>
+                          <div className="text-3xl font-bold text-gray-800">${parseFloat(credit.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 font-bold mb-1">Available Credit</div>
+                          <div className="text-3xl font-bold text-emerald-600">${(parseFloat(credit.credit_limit) - parseFloat(credit.balance)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handlePayDebtModal('credit', credit)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded mb-8 transition shadow-sm focus:outline-none">
+                        Make a Payment
+                      </button>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-8 mb-8">
-                    <div>
-                      <div className="text-sm text-gray-600 font-bold mb-1">Current Balance</div>
-                      <div className="text-3xl font-bold text-gray-800">$450.20</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600 font-bold mb-1">Available Credit</div>
-                      <div className="text-3xl font-bold text-emerald-600">$9,549.80</div>
-                    </div>
-                  </div>
-                  <button onClick={() => handleSecureAction('transfer')} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded mb-8 transition shadow-sm focus:outline-none">
-                    Make a Payment
-                  </button>
+                  )) : (
+                     <div className="text-center py-20 text-gray-400 font-bold">No Credit Accounts Found.</div>
+                  )}
                 </div>
               )}
 
               {activeTab === 'loans' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-1">2024 Toyota Camry Auto Loan</h2>
-                  <p className="text-gray-500 text-sm mb-8">Account ending in ...2284</p>
-                  <div className="bg-gray-50 rounded-xl p-6 mb-8 shadow-sm">
-                    <div className="flex justify-between items-end mb-4">
-                      <div>
-                        <div className="text-sm text-gray-600 font-bold uppercase mb-1">Remaining Principal</div>
-                        <div className="text-[40px] font-bold text-gray-800 leading-none">$18,430.00</div>
+                  {loanAccounts.length > 0 ? loanAccounts.map(loan => {
+                    const paidPct = ((loan.original_principal - loan.current_balance) / loan.original_principal) * 100;
+                    return (
+                      <div key={loan.id} className="mb-10 border-b pb-6 last:border-b-0">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-1">{loan.loan_name}</h2>
+                        <p className="text-gray-500 text-sm mb-8">Account ending in ...{loan.account_number.slice(-4)}</p>
+                        <div className="bg-gray-50 rounded-xl p-6 mb-8 shadow-sm">
+                          <div className="flex justify-between items-end mb-4">
+                            <div>
+                              <div className="text-sm text-gray-600 font-bold uppercase mb-1">Remaining Principal</div>
+                              <div className="text-[40px] font-bold text-gray-800 leading-none">${parseFloat(loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-[#dd0031]">${parseFloat(loan.monthly_payment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                              <div className="text-xs text-gray-500 font-bold">Due {formatDate(loan.next_payment_date)}</div>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-2 shadow-inner">
+                            <div className="bg-emerald-500 h-full" style={{ width: `${paidPct}%` }}></div>
+                          </div>
+                          <div className="flex justify-between text-xs font-bold text-gray-500">
+                            <span>${(loan.original_principal - loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Paid</span>
+                            <span>${parseFloat(loan.original_principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Loan</span>
+                          </div>
+                        </div>
+                        <button onClick={() => handlePayDebtModal('loan', loan)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
+                          Pay Auto Loan
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-[#dd0031]">$410.00</div>
-                        <div className="text-xs text-gray-500 font-bold">Due Aug 1, 2026</div>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-2 shadow-inner">
-                      <div className="bg-emerald-500 h-full" style={{ width: '35%' }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs font-bold text-gray-500">
-                      <span>$6,570 Paid</span>
-                      <span>$25,000 Total Loan</span>
-                    </div>
-                  </div>
-                  <button className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
-                    Pay Auto Loan
-                  </button>
+                    )
+                  }) : (
+                     <div className="text-center py-20 text-gray-400 font-bold">No Active Loans.</div>
+                  )}
                 </div>
               )}
 
@@ -343,8 +489,12 @@ export default function ClientDashboard() {
                   <div className="flex items-center justify-center flex-col py-10 border-b border-gray-100">
                     <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4 text-4xl shadow-inner">🏆</div>
                     <h2 className="text-2xl font-bold text-gray-800">Your Rewards Balance</h2>
-                    <div className="text-[48px] font-extrabold text-[#0071ce] mt-2">45,200 <span className="text-xl text-gray-500">Miles</span></div>
-                    <p className="text-sm text-emerald-600 font-bold mt-2">≈ $452.00 in Travel Value</p>
+                    <div className="text-[48px] font-extrabold text-[#0071ce] mt-2">
+                      {rewardMiles.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xl text-gray-500">Miles</span>
+                    </div>
+                    <p className="text-sm text-emerald-600 font-bold mt-2">
+                      ≈ ${rewardValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in Travel Value
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
                     <button className="bg-gray-50 hover:bg-gray-100 hover:shadow-md p-6 rounded-xl flex flex-col items-center text-center transition focus:outline-none">
@@ -369,8 +519,13 @@ export default function ClientDashboard() {
                       <p className="text-sm text-gray-500 mt-1">Click any transaction to view details</p>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col overflow-y-auto max-h-[600px]">
+                  <div className="flex-1 flex flex-col overflow-y-auto max-h-[600px] pb-4">
                     {renderTransactionList()}
+                    {hasMoreTxs && transactions.length > 0 && (
+                        <button onClick={loadMoreTransactions} className="mt-4 mx-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded text-sm transition">
+                            Load Older Transactions
+                        </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -402,20 +557,21 @@ export default function ClientDashboard() {
 
               <div className="bg-white rounded-xl shadow flex flex-col">
                 <div className="p-5 md:p-6 pb-4 border-b border-gray-50"><h3 className="text-lg font-bold text-gray-800">Upcoming Transactions</h3></div>
-                {upcomingTransactions.map((tx) => (
+                {upcomingTxs.length === 0 && <div className="p-6 text-center text-gray-400 font-bold text-sm">No scheduled payments.</div>}
+                {upcomingTxs.map((tx) => (
                   <div 
                     key={tx.id} 
                     onClick={() => {
                       setSelectedTx({
                         id: tx.id,
                         txPrefix: '-',
-                        txColor: tx.color,
+                        txColor: tx.color || 'bg-slate-500',
                         textColor: 'text-gray-800',
                         absAmount: Math.abs(Number(tx.amount)).toFixed(2),
                         description: tx.name,
                         type: 'Scheduled Payment',
-                        account: '360 Checking (...0096)',
-                        formattedDate: tx.date,
+                        account: `360 Checking (...${accountNumber})`,
+                        formattedDate: tx.date || formatDate(tx.next_date),
                         status: 'Pending'
                       });
                       setActiveModal('tx_details');
@@ -423,21 +579,20 @@ export default function ClientDashboard() {
                     className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color}`}>{tx.initial}</div>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
                       <div>
                         <div className="font-bold text-sm text-gray-800">{tx.name}</div>
-                        <div className="text-[11px] text-gray-500">{tx.category}</div>
+                        <div className="text-[11px] text-gray-500">{tx.category || 'General'}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold text-sm text-gray-800">{tx.amount}</div>
-                      <div className="text-[11px] text-gray-500">{tx.date}</div>
+                      <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toFixed(2)}</div>
+                      <div className="text-[11px] text-gray-500">{tx.date || formatDate(tx.next_date)}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* RESTORED SPENDING TAB */}
               <div 
                 onClick={() => setActiveModal('spending_details')}
                 className="bg-white rounded-xl shadow p-5 md:p-6 relative cursor-pointer hover:shadow-md transition group border border-transparent hover:border-[#0071ce]"
@@ -450,19 +605,19 @@ export default function ClientDashboard() {
                   <div>
                     <div className="flex text-sm mb-2 justify-between">
                       <span className="font-bold text-gray-800">Total Inflow</span> 
-                      <span className="font-bold text-emerald-600">+${(transactions.filter(tx => tx.type === 'deposit').reduce((acc, curr) => acc + Number(curr.amount), 0) + 3995.47).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                      <span className="font-bold text-emerald-600">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                     </div>
                     <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner">
-                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: '75%' }}></div>
+                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalInflow === 0 ? 0 : (totalInflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
                     </div>
                   </div>
                   <div>
                     <div className="flex text-sm mb-2 justify-between">
                       <span className="font-bold text-gray-800">Total Outflow</span> 
-                      <span className="font-bold text-[#dd0031]">${(transactions.filter(tx => tx.type === 'withdrawal').reduce((acc, curr) => acc + Number(curr.amount), 0) + 3722.68).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                      <span className="font-bold text-[#dd0031]">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                     </div>
                     <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden shadow-inner">
-                      <div className="bg-[#dd0031] h-full rounded-full" style={{ width: '45%' }}></div>
+                      <div className="bg-[#dd0031] h-full rounded-full" style={{ width: `${totalOutflow === 0 ? 0 : (totalOutflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -476,6 +631,46 @@ export default function ClientDashboard() {
       {/* --------------------------------------------------------------------------------
           MODALS ENGINE
           -------------------------------------------------------------------------------- */}
+
+      {/* PAY DEBT MODAL (NEW) */}
+      {activeModal === 'pay_debt' && targetDebt && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200 border-t-8 border-[#0071ce]">
+            <form onSubmit={executeDebtPayment}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Make a Payment</h2>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+              </div>
+              
+              <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-100">
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Paying Towards</div>
+                <div className="font-bold text-gray-800">{targetDebt.name}</div>
+                <div className="text-sm text-gray-600 mt-1">Current Balance: <span className="font-bold text-[#dd0031]">${parseFloat(targetDebt.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+              </div>
+
+              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-sm border border-red-200">{errorMsg}</div>}
+
+              <label className="block text-sm font-bold text-gray-700 mb-2">Pay From</label>
+              <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white" required>
+                <option value="checking">360 Checking (...{accountNumber}) - ${parseFloat(checkingBalance).toFixed(2)}</option>
+              </select>
+
+              <label className="block text-sm font-bold text-gray-700 mb-2">Payment Amount</label>
+              <div className="relative mb-8">
+                <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
+                <input type="number" step="0.01" required className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+              </div>
+              
+              <div className="flex justify-end space-x-4">
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50" disabled={isTransferring}>Cancel</button>
+                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50">
+                  {isTransferring ? 'Processing...' : 'Submit Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* RESTRICTED ACCOUNT MODAL */}
       {activeModal === 'restricted' && (
@@ -522,7 +717,7 @@ export default function ClientDashboard() {
                 <div className="flex justify-between"><span className="text-gray-500 text-sm">Time</span><span className="font-bold text-gray-800 text-right">{selectedTx.formattedTime}</span></div>
               )}
               {selectedTx.id && !selectedTx.id.toString().startsWith('up-') && (
-                <div className="flex justify-between"><span className="text-gray-500 text-sm">Reference ID</span><span className="font-mono text-xs text-gray-800 mt-1 text-right">{selectedTx.id.split('-')[0].toUpperCase()}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500 text-sm">Reference ID</span><span className="font-mono text-xs text-gray-800 mt-1 text-right">{selectedTx.reference_id || selectedTx.id.split('-')[0].toUpperCase()}</span></div>
               )}
             </div>
             <button onClick={() => setActiveModal('none')} className="w-full mt-8 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded transition focus:outline-none">Close Details</button>
@@ -530,14 +725,14 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      {/* NEW SPENDING DETAILS MODAL */}
+      {/* SPENDING DETAILS MODAL */}
       {activeModal === 'spending_details' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 md:p-8 animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">Cash Flow Insights</h2>
-                <p className="text-sm text-gray-500 mt-1">Month-to-Date Breakdown</p>
+                <p className="text-sm text-gray-500 mt-1">Dynamic Breakdown</p>
               </div>
               <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
             </div>
@@ -546,29 +741,29 @@ export default function ClientDashboard() {
               <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-xl text-center">
                 <div className="w-12 h-12 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">↓</div>
                 <div className="text-sm font-bold text-emerald-700 uppercase tracking-wider">Money In</div>
-                <div className="text-3xl font-black text-emerald-600 mt-1">+${(transactions.filter(tx => tx.type === 'deposit').reduce((acc, curr) => acc + Number(curr.amount), 0) + 3995.47).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div className="text-3xl font-black text-emerald-600 mt-1">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
               </div>
               <div className="bg-red-50 border border-red-100 p-6 rounded-xl text-center">
                 <div className="w-12 h-12 bg-red-200 text-red-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">↑</div>
                 <div className="text-sm font-bold text-red-700 uppercase tracking-wider">Money Out</div>
-                <div className="text-3xl font-black text-[#dd0031] mt-1">-${(transactions.filter(tx => tx.type === 'withdrawal').reduce((acc, curr) => acc + Number(curr.amount), 0) + 3722.68).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div className="text-3xl font-black text-[#dd0031] mt-1">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
               </div>
             </div>
 
             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">Top Spending Categories</h3>
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1"><span className="font-bold text-gray-700">Bills & Utilities</span><span className="font-bold text-gray-800">$1,450.00</span></div>
-                <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#0071ce] h-full rounded-full" style={{ width: '60%' }}></div></div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1"><span className="font-bold text-gray-700">Food & Dining</span><span className="font-bold text-gray-800">$840.25</span></div>
-                <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#e50914] h-full rounded-full" style={{ width: '40%' }}></div></div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1"><span className="font-bold text-gray-700">Transportation</span><span className="font-bold text-gray-800">$320.00</span></div>
-                <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#673ab7] h-full rounded-full" style={{ width: '25%' }}></div></div>
-              </div>
+              {['Food', 'Bills', 'Shopping', 'Transfer', 'General'].map(cat => {
+                 const amount = transactions.filter(tx => tx.sender_account_id === accountId && tx.category === cat).reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+                 if (amount === 0) return null;
+                 const pct = totalOutflow > 0 ? (amount / totalOutflow) * 100 : 0;
+                 return (
+                  <div key={cat} className="mb-3">
+                    <div className="flex justify-between text-sm mb-1"><span className="font-bold text-gray-700">{cat}</span><span className="font-bold text-gray-800">${amount.toFixed(2)}</span></div>
+                    <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#0071ce] h-full rounded-full" style={{ width: `${pct}%` }}></div></div>
+                  </div>
+                 )
+              })}
+              {totalOutflow === 0 && <p className="text-gray-500 text-sm">No spending data available yet.</p>}
             </div>
 
             <button onClick={() => setActiveModal('none')} className="w-full mt-8 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded transition focus:outline-none">
@@ -582,47 +777,51 @@ export default function ClientDashboard() {
       {activeModal === 'wire' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 md:p-8 animate-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-8 border-b pb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-[#004879]">Wire Transfer</h2>
-                <p className="text-sm text-gray-500 mt-1">Secure International & Domestic Routing</p>
+            <form onSubmit={(e) => handleExternalTransfer(e, 'wire')}>
+              <div className="flex justify-between items-center mb-8 border-b pb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#004879]">Wire Transfer</h2>
+                  <p className="text-sm text-gray-500 mt-1">Secure International & Domestic Routing</p>
+                </div>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
               </div>
-              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Name / Business</label>
-                <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="John Doe" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Bank Name</label>
-                <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="Standard Chartered Bank" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Account Number / IBAN</label>
-                <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="GB1234567890" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Routing Number / SWIFT</label>
-                <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="BOFAUS3N" />
-              </div>
-            </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-8">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Wire Amount</label>
-              <div className="relative">
-                <span className="absolute left-4 top-3 text-gray-700 font-bold text-xl">$</span>
-                <input type="number" className="w-full border border-gray-300 rounded pl-10 pr-4 py-3 font-mono text-xl focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="0.00" />
+              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-6 font-bold text-sm border border-red-200">{errorMsg}</div>}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Name / Business</label>
+                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="John Doe" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Bank Name</label>
+                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="Standard Chartered Bank" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Account Number / UUID</label>
+                  <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="Enter recipient UUID" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Routing Number / SWIFT</label>
+                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="BOFAUS3N" />
+                </div>
               </div>
-            </div>
-            
-            <div className="flex justify-end space-x-4">
-              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold hover:text-gray-800 focus:outline-none">Cancel</button>
-              <button onClick={() => { alert('Simulation: Wire transfer initiated!'); setActiveModal('none'); }} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-8 py-3 rounded font-bold transition shadow-md focus:outline-none">
-                Authorize Wire
-              </button>
-            </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-8">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Wire Amount</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3 text-gray-700 font-bold text-xl">$</span>
+                  <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full border border-gray-300 rounded pl-10 pr-4 py-3 font-mono text-xl focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="0.00" />
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-4">
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold hover:text-gray-800 focus:outline-none disabled:opacity-50" disabled={isTransferring}>Cancel</button>
+                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-8 py-3 rounded font-bold transition shadow-md focus:outline-none disabled:opacity-50">
+                  {isTransferring ? 'Processing...' : 'Authorize Wire'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -634,17 +833,17 @@ export default function ClientDashboard() {
             <h2 className="text-2xl font-bold text-[#004879] mb-6">Internal Transfer</h2>
             <label className="block text-sm font-bold text-gray-700 mb-2">Direction</label>
             <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white" value={transferDirection} onChange={(e) => setTransferDirection(e.target.value)}>
-              <option value="c2s">360 Checking  →  360 Savings</option>
-              <option value="s2c">360 Savings  →  360 Checking</option>
+              <option value="c2s">360 Checking (...{accountNumber})  →  360 Savings (...{savingsAccountNumber})</option>
+              <option value="s2c">360 Savings (...{savingsAccountNumber})  →  360 Checking (...{accountNumber})</option>
             </select>
             <label className="block text-sm font-bold text-gray-700 mb-2">Amount</label>
             <div className="relative mb-8">
               <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
-              <input type="number" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+              <input type="number" step="0.01" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
             </div>
             <div className="flex justify-end space-x-4">
-              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold">Cancel</button>
-              <button onClick={executeTransfer} disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50">
+              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50" disabled={isTransferring}>Cancel</button>
+              <button onClick={executeInternalTransfer} disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50">
                 {isTransferring ? 'Processing...' : 'Transfer Now'}
               </button>
             </div>
@@ -656,19 +855,26 @@ export default function ClientDashboard() {
       {activeModal === 'zelle' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200 border-t-8 border-[#7413dc]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-extrabold text-[#7413dc] italic tracking-tighter">Zelle<span className="text-sm align-top">®</span></h2>
-              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
-            </div>
-            <p className="text-sm text-gray-600 mb-6">Send money to friends, family, and others you trust, right from your app.</p>
-            <input type="text" placeholder="Recipient Email or U.S. Mobile Number" className="w-full border border-gray-300 rounded px-4 py-3 mb-4 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
-            <div className="relative mb-8">
-              <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
-              <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
-            </div>
-            <button onClick={() => { alert('Simulation: Zelle transfer initiated!'); setActiveModal('none'); }} className="w-full bg-[#7413dc] hover:bg-[#5b0ea8] text-white font-bold py-3 rounded transition shadow-md focus:outline-none">
-              Review & Send
-            </button>
+            <form onSubmit={(e) => handleExternalTransfer(e, 'zelle')}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-extrabold text-[#7413dc] italic tracking-tighter">Zelle<span className="text-sm align-top">®</span></h2>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">Send money to friends, family, and others you trust, right from your app.</p>
+              
+              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-sm border border-red-200">{errorMsg}</div>}
+
+              <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} placeholder="Recipient Account UUID" className="w-full border border-gray-300 rounded px-4 py-3 mb-4 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
+              <div className="relative mb-4">
+                <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
+                <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
+              </div>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this for? (Optional)" className="w-full border border-gray-300 rounded px-4 py-3 mb-8 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white text-sm" />
+
+              <button type="submit" disabled={isTransferring} className="w-full bg-[#7413dc] hover:bg-[#5b0ea8] text-white font-bold py-3 rounded transition shadow-md focus:outline-none disabled:opacity-50">
+                {isTransferring ? 'Processing...' : 'Review & Send'}
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -685,29 +891,31 @@ export default function ClientDashboard() {
             <div className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50">
               <div>
                 <div className="font-bold text-gray-800">360 Debit Card</div>
-                <div className="text-xs text-gray-500">Ending in ...0096</div>
+                <div className="text-xs text-gray-500">Ending in ...{accountNumber}</div>
               </div>
               <button onClick={() => setIsDebitLocked(!isDebitLocked)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDebitLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDebitLocked ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
-            <div className="flex justify-between items-center p-4 rounded-lg mb-8 bg-gray-50">
-              <div>
-                <div className="font-bold text-gray-800">Quicksilver Credit Card</div>
-                <div className="text-xs text-gray-500">Ending in ...9794</div>
+            {creditAccounts.map(credit => (
+              <div key={credit.id} className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50">
+                <div>
+                  <div className="font-bold text-gray-800">{credit.card_name}</div>
+                  <div className="text-xs text-gray-500">Ending in ...{credit.card_number.slice(-4)}</div>
+                </div>
+                <button onClick={() => setIsCreditLocked(!isCreditLocked)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isCreditLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCreditLocked ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
               </div>
-              <button onClick={() => setIsCreditLocked(!isCreditLocked)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isCreditLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCreditLocked ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            <button onClick={() => setActiveModal('none')} className="w-full bg-[#004879] hover:bg-[#003456] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
+            ))}
+            <button onClick={() => setActiveModal('none')} className="w-full mt-4 bg-[#004879] hover:bg-[#003456] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
               Save Security Settings
             </button>
           </div>
         </div>
       )}
 
-      {/* STATEMENT / PDF MODAL */}
+      {/* STATEMENT / PDF MODAL (RESTORED) */}
       {activeModal === 'statement' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:bg-white print:p-0 print:block">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto print:shadow-none print:max-h-none print:w-full print:p-8 animate-in slide-in-from-bottom-8">
@@ -716,7 +924,7 @@ export default function ClientDashboard() {
               <div className="text-right">
                 <h1 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Account Statement</h1>
                 <p className="text-gray-500 font-mono mt-1">Generated: {new Date().toLocaleDateString()}</p>
-                <p className="text-gray-500 font-mono text-sm">Account: 360 Checking (...0096)</p>
+                <p className="text-gray-500 font-mono text-sm">Account: 360 Checking (...{accountNumber})</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-8 mb-8 border-b border-gray-200 pb-8">
@@ -746,9 +954,9 @@ export default function ClientDashboard() {
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-b border-gray-100">
                     <td className="py-3 text-sm text-gray-600 font-mono">{formatDate(tx.created_at)}</td>
-                    <td className="py-3 text-sm font-bold text-gray-800 capitalize">{tx.type} <span className="text-xs font-normal text-gray-400 block">{tx.status}</span></td>
+                    <td className="py-3 text-sm font-bold text-gray-800 capitalize">{tx.description || tx.type} <span className="text-xs font-normal text-gray-400 block">{tx.status}</span></td>
                     <td className="py-3 text-sm font-bold text-right font-mono text-gray-800">
-                      {tx.type === 'withdrawal' || Number(tx.amount) < 0 ? '-' : '+'}${Math.abs(Number(tx.amount)).toFixed(2)}
+                      {tx.sender_account_id === accountId ? '-' : '+'}${Math.abs(Number(tx.amount)).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -764,6 +972,7 @@ export default function ClientDashboard() {
           </div>
         </div>
       )}
+
     </>
   );
 }
