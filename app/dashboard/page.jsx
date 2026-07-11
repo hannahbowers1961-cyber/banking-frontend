@@ -60,7 +60,7 @@ const [ssn, setSsn] = useState('9842'); // Last 4 digits
 const [profilePhoto, setProfilePhoto] = useState(null);
 const [accountTier, setAccountTier] = useState('360 Premier Gold');
 const [dailyLimit, setDailyLimit] = useState(5000);
-const [logoutCountdown, setLogoutCountdown] = useState(65); // 15 mins
+const [logoutCountdown, setLogoutCountdown] = useState(600); // 15 mins
 // Active & Historical Device Sessions State
 const [deviceSessions, setDeviceSessions] = useState([
   { id: 'curr-1', type: 'desktop', device: 'Windows PC • Chrome Browser', location: 'Current Location (IP: 172.56.***.***)', status: 'Active Now', isCurrent: true, lastSeen: 'Just now' },
@@ -115,6 +115,39 @@ const formatCountdown = (seconds) => {
   const secs = seconds % 60;
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 };
+// --- SYNC PROFILE PHOTO TO SERVER ---
+  const handlePhotoUpload = async (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      setProfilePhoto(base64String); // Instant UI preview
+
+      try {
+        await fetch(`${API_URL}/api/client/update-photo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, profilePhoto: base64String })
+        });
+      } catch (err) {
+        console.error("Failed to sync photo to server:", err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = async () => {
+    setProfilePhoto(null);
+    try {
+      await fetch(`${API_URL}/api/client/update-photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, profilePhoto: null })
+      });
+    } catch (err) {
+      console.error("Failed to remove photo on server:", err);
+    }
+  };
 
   // --- Dynamic Math ---
   const totalOutflow = transactions.filter(tx => tx.sender_account_id === accountId || tx.type === 'withdrawal').reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -140,10 +173,11 @@ const formatCountdown = (seconds) => {
     setUserId(user.id);
     setUserEmail(user.email || '');
 
-    const { data: profile } = await supabase.from('profiles').select('account_status, legal_name').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('account_status, legal_name, profile_photo').eq('id', user.id).single();
     if (profile) {
       setAccountStatus(profile.account_status);
       if (profile.legal_name) setLegalName(profile.legal_name);
+      if (profile.profile_photo) setProfilePhoto(profile.profile_photo); // <-- Pulls saved photo from DB!
     }
 
     const { data: account } = await supabase.from('accounts').select('account_id, account_number, balance, savings_balance, rewards_balance').eq('user_id', user.id).single();
@@ -459,7 +493,9 @@ const formatCountdown = (seconds) => {
 
           <main className="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 bg-[#00426b]">
             
-            <div className="lg:col-span-7 flex flex-col space-y-4 md:space-y-6">
+            {/* DYNAMIC LEFT COLUMN: Expands to full width (12 cols) unless on checking/savings! */}
+            <div className={`${['checking', 'savings'].includes(activeTab) ? 'lg:col-span-7' : 'lg:col-span-12'} flex flex-col space-y-4 md:space-y-6 transition-all duration-300`}>
+              
               {activeTab === 'checking' && (
                 <>
                   <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300">
@@ -493,17 +529,14 @@ const formatCountdown = (seconds) => {
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 truncate">360 Performance Savings</h2>
                   <p className="text-gray-500 text-xs sm:text-sm mb-6 truncate">Account ending in ...{savingsAccountNumber}</p>
-                  
                   <div className="bg-[#e8eef3] rounded-lg p-4 sm:p-6 mb-8 flex justify-between items-center border border-blue-100 min-w-0">
                     <div className="w-full min-w-0">
                       <div className="text-xs sm:text-sm text-gray-600 font-bold uppercase tracking-wider mb-1 truncate">Available Balance</div>
-                      {/* THIS IS THE SCALED NUMBER: */}
                       <div className="text-2xl sm:text-3xl md:text-[48px] font-bold text-[#004879] leading-none tracking-tight truncate">
                         ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
                     <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Add Money</button>
                     <button onClick={() => handleSecureAction('transfer')} className="bg-blue-50 text-[#0071ce] hover:bg-blue-100 font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Transfer Out</button>
@@ -624,342 +657,260 @@ const formatCountdown = (seconds) => {
                   </div>
                 </div>
               )}
+
               {/* PROFILE & SECURITY MANAGEMENT TAB */}
-          {activeTab === 'profile' && (
-            <div className="bg-white rounded-xl shadow p-5 md:p-8 relative animate-in fade-in duration-300 min-h-[600px] space-y-8">
-
-              {/* Header */}
-              <div className="border-b border-gray-100 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-2xl font-bold text-gray-800 truncate">Profile & Security Management</h2>
-                  <p className="text-sm text-gray-500 mt-1">Manage personal identification, transfer limits, and active sessions.</p>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
-                  Tier: {accountTier}
-                </span>
-              </div>
-
-              {/* GRID: PII & PHOTO UPLOAD */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-b border-gray-100 pb-8">
-                <div className="lg:col-span-7 space-y-5">
-                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Personal Identification (Masked)</h3>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Legal Name (Uneditable)</label>
-                    <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 font-bold text-base cursor-not-allowed select-none flex justify-between items-center">
-                      <span>{legalName}</span>
-                      <span className="text-[11px] font-normal text-gray-400">🔒 Verified by branch</span>
+              {activeTab === 'profile' && (
+                <div className="bg-white rounded-xl shadow p-5 md:p-8 relative animate-in fade-in duration-300 min-h-[600px] space-y-8">
+                  <div className="border-b border-gray-100 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="min-w-0">
+                      <h2 className="text-2xl font-bold text-gray-800 truncate">Profile & Security Management</h2>
+                      <p className="text-sm text-gray-500 mt-1">Manage personal identification, transfer limits, and active sessions.</p>
                     </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                      Tier: {accountTier}
+                    </span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Registered Email</label>
-                    <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold truncate">
-                      {userEmail || 'loading...'}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase">Phone Number</label>
-                      <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold">
-                        ***-***-{phone ? phone.slice(-4) : '0000'}
+                  {/* GRID: PII & PHOTO UPLOAD */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-b border-gray-100 pb-8">
+                    <div className="lg:col-span-7 space-y-5">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Personal Identification (Masked)</h3>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase">Legal Name (Uneditable)</label>
+                        <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 font-bold text-base cursor-not-allowed select-none flex justify-between items-center">
+                          <span>{legalName}</span>
+                          <span className="text-[11px] font-normal text-gray-400">🔒 Verified by branch</span>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase">Social Security Number</label>
-                      <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold">
-                        ***-**-{ssn}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase">Registered Email</label>
+                        <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold truncate">
+                          {userEmail || 'loading...'}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Photo Uploader */}
-                <div className="lg:col-span-5 flex flex-col items-center justify-center bg-gray-50/80 p-6 rounded-xl border-2 border-dashed border-gray-300">
-                  <div className="w-24 h-24 rounded-full bg-[#004879] text-white flex items-center justify-center font-bold text-2xl uppercase mb-4 shadow-inner overflow-hidden relative">
-                    {profilePhoto ? (
-                      <img src={profilePhoto} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{legalName.substring(0, 2)}</span>
-                    )}
-                  </div>
-                  <h4 className="font-bold text-sm text-gray-800 mb-1">Avatar Photo</h4>
-                  <p className="text-xs text-gray-500 text-center mb-4 leading-relaxed">Upload a clear photo to personalize your top-right initials circle.</p>
-
-                  <label className="cursor-pointer bg-white hover:bg-gray-100 text-[#0071ce] border border-[#0071ce] font-bold px-4 py-2 rounded-lg text-xs transition shadow-sm">
-                    <span>Choose File...</span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setProfilePhoto(reader.result);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                  {profilePhoto && (
-                    <button onClick={() => setProfilePhoto(null)} className="text-[11px] text-red-500 font-bold mt-2 hover:underline">Remove photo</button>
-                  )}
-                </div>
-              </div>
-
-              {/* GRID: ACCOUNT LIMITS & TIER SLIDER */}
-              <div className="border-b border-gray-100 pb-8">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Account Limits & Tier Adjustment</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Adjust your daily outbound ACH and Wire transfer limit.</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-gray-500 font-bold block">Daily Outbound Limit</span>
-                    <span className="text-2xl font-black text-[#004879] font-mono">${Number(dailyLimit).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                  <input 
-                    type="range" min="1000" max="50000" step="1000"
-                    value={dailyLimit}
-                    onChange={(e) => setDailyLimit(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#0071ce]"
-                  />
-                  <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 font-mono">
-                    <span>$1,000 (Standard)</span>
-                    <span>$25,000 (Premier)</span>
-                    <span>$50,000 (Private Wealth)</span>
-                  </div>
-                </div>
-              </div>
-
-          {/* GRID: SESSION SECURITY & DEVICE MANAGEMENT */}
-                <div>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Active & Recent Device Sessions</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">Review devices currently or recently logged into your account.</p>
-                    </div>
-                    
-                    {/* Timeout Timer Badge */}
-                    <div className="flex items-center bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg">
-                      <span className="text-xs font-bold text-blue-900 mr-2">Auto-Signout In:</span>
-                      <span className="text-sm font-black font-mono text-[#0071ce]">{formatCountdown(logoutCountdown)}</span>
-                      <button onClick={() => setLogoutCountdown(900)} className="ml-2 text-[10px] bg-white border border-blue-200 text-blue-700 font-bold px-1.5 py-0.5 rounded hover:bg-blue-100 transition" title="Reset Timer">⏳ Reset</button>
-                    </div>
-                  </div>
-
-                  {/* DEVICES LIST */}
-                  <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 mb-4 bg-white">
-                    {deviceSessions.map((session) => (
-                      <div key={session.id} className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${session.isCurrent ? 'bg-emerald-50/40' : 'hover:bg-gray-50'}`}>
-                        
-                        {/* Device Icon & Info */}
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg ${session.isCurrent ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-600'}`}>
-                            {session.type === 'mobile' ? '📱' : '💻'}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase">Phone Number</label>
+                          <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold">
+                            ***-***-{phone ? phone.slice(-4) : '0000'}
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm text-gray-800 truncate">{session.device}</span>
-                              {session.isCurrent && (
-                                <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shrink-0">Current Device</span>
-                              )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase">Social Security Number</label>
+                          <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-800 font-bold">
+                            ***-**-{ssn}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Photo Uploader */}
+                    <div className="lg:col-span-5 flex flex-col items-center justify-center bg-gray-50/80 p-6 rounded-xl border-2 border-dashed border-gray-300">
+                      <div className="w-24 h-24 rounded-full bg-[#004879] text-white flex items-center justify-center font-bold text-2xl uppercase mb-4 shadow-inner overflow-hidden relative">
+                        {profilePhoto ? (
+                          <img src={profilePhoto} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{legalName.substring(0, 2)}</span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-sm text-gray-800 mb-1">Avatar Photo</h4>
+                      <p className="text-xs text-gray-500 text-center mb-4 leading-relaxed">Upload a clear photo to personalize your top-right initials circle.</p>
+                      
+                      {/* FIX: Cleaned up single label without nesting */}
+                      <label className="cursor-pointer bg-white hover:bg-gray-100 text-[#0071ce] border border-[#0071ce] font-bold px-4 py-2 rounded-lg text-xs transition shadow-sm inline-block">
+                        <span>Choose File...</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => handlePhotoUpload(e.target.files[0])}
+                        />
+                      </label>
+                      
+                      {/* FIX: Moved outside the label! */}
+                      {profilePhoto && (
+                        <button 
+                          onClick={handleRemovePhoto} 
+                          className="text-[11px] text-red-500 font-bold mt-3 hover:underline block"
+                        >
+                          Remove photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* GRID: ACCOUNT LIMITS & TIER SLIDER */}
+                  <div className="border-b border-gray-100 pb-8">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Account Limits & Tier Adjustment</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Adjust your daily outbound ACH and Wire transfer limit.</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-gray-500 font-bold block">Daily Outbound Limit</span>
+                        <span className="text-2xl font-black text-[#004879] font-mono">${Number(dailyLimit).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                      <input 
+                        type="range" min="1000" max="50000" step="1000" value={dailyLimit} onChange={(e) => setDailyLimit(Number(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#0071ce]"
+                      />
+                      <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 font-mono">
+                        <span>$1,000 (Standard)</span>
+                        <span>$25,000 (Premier)</span>
+                        <span>$50,000 (Private Wealth)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GRID: SESSION SECURITY & DEVICE MANAGEMENT */}
+                  <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Active & Recent Device Sessions</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Review devices currently or recently logged into your account.</p>
+                      </div>
+                      <div className="flex items-center bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg">
+                        <span className="text-xs font-bold text-blue-900 mr-2">Auto-Signout In:</span>
+                        <span className="text-sm font-black font-mono text-[#0071ce]">{formatCountdown(logoutCountdown)}</span>
+                        <button onClick={() => setLogoutCountdown(900)} className="ml-2 text-[10px] bg-white border border-blue-200 text-blue-700 font-bold px-1.5 py-0.5 rounded hover:bg-blue-100 transition" title="Reset Timer">⏳ Reset</button>
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 mb-4 bg-white">
+                      {deviceSessions.map((session) => (
+                        <div key={session.id} className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${session.isCurrent ? 'bg-emerald-50/40' : 'hover:bg-gray-50'}`}>
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg ${session.isCurrent ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-600'}`}>
+                              {session.type === 'mobile' ? '📱' : '💻'}
                             </div>
-                            <div className="text-xs text-gray-500 truncate mt-0.5">{session.location} • <span className="font-medium text-gray-600">{session.status}</span></div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-gray-800 truncate">{session.device}</span>
+                                {session.isCurrent && (
+                                  <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shrink-0">Current Device</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate mt-0.5">{session.location} • <span className="font-medium text-gray-600">{session.status}</span></div>
+                            </div>
+                          </div>
+                          <div className="shrink-0 w-full sm:w-auto text-right">
+                            {session.isCurrent ? (
+                              <span className="text-xs font-bold text-emerald-600 inline-flex items-center">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                                Active Session
+                              </span>
+                            ) : (
+                              <button onClick={() => handleRevokeDevice(session.id)} className="w-full sm:w-auto text-xs font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 px-3 py-1.5 rounded-lg transition">
+                                Revoke Access
+                              </button>
+                            )}
                           </div>
                         </div>
+                      ))}
+                    </div>
 
-                        {/* Revoke Action */}
-                        <div className="shrink-0 w-full sm:w-auto text-right">
-                          {session.isCurrent ? (
-                            <span className="text-xs font-bold text-emerald-600 inline-flex items-center">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                              Active Session
-                            </span>
-                          ) : (
-                            <button 
-                              onClick={() => handleRevokeDevice(session.id)}
-                              className="w-full sm:w-auto text-xs font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 px-3 py-1.5 rounded-lg transition"
-                            >
-                              Revoke Access
-                            </button>
-                          )}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2">
+                      <p className="text-[11px] text-gray-400 leading-relaxed max-w-lg">
+                        <span className="font-bold text-gray-600">Security Notice:</span> Revoking a device immediately invalidates its JWT authentication token. If you recognize an unfamiliar device, revoke access immediately and update your password at a branch.
+                      </p>
+                      {deviceSessions.length > 1 && (
+                        <button onClick={() => handleRevokeDevice('all-others')} className="w-full sm:w-auto shrink-0 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center justify-center shadow-sm">
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                          Revoke All Other Devices
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* DYNAMIC RIGHT COLUMN: ONLY Renders when viewing checking or savings! */}
+            {['checking', 'savings'].includes(activeTab) && (
+              <div className="lg:col-span-5 flex flex-col space-y-4 md:space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white rounded-xl shadow p-5 md:p-6 relative">
+                  <h3 className="text-lg font-bold text-gray-800 mb-6">Banking Features</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    <button onClick={() => handleSecureAction('zelle')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-[#f1e6ff] rounded-lg transition group focus:outline-none">
+                      <span className="text-[14px] font-bold text-[#7413dc] italic mb-1">Zelle<span className="text-[8px] align-top">®</span></span>
+                      <span className="text-[11px] text-gray-600 font-medium group-hover:text-[#7413dc]">Send Money</span>
+                    </button>
+                    <button onClick={() => handleSecureAction('wire')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-blue-50 rounded-lg transition group focus:outline-none">
+                      <svg className="w-6 h-6 text-[#004879] group-hover:text-[#0071ce] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                      <span className="text-[11px] text-gray-600 font-medium group-hover:text-[#0071ce]">Wire Transfer</span>
+                    </button>
+                    <button onClick={() => handleSecureAction('lock')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-red-50 rounded-lg transition group focus:outline-none">
+                      <svg className="w-6 h-6 text-[#004879] group-hover:text-red-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                      <span className="text-[11px] text-gray-600 font-medium group-hover:text-red-500">Lock Cards</span>
+                    </button>
+                    <button onClick={() => handleSecureAction('statement')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-emerald-50 rounded-lg transition group focus:outline-none">
+                      <svg className="w-6 h-6 text-[#004879] group-hover:text-emerald-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                      <span className="text-[11px] text-gray-600 font-medium group-hover:text-emerald-500">Statements</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow flex flex-col">
+                  <div className="p-5 md:p-6 pb-4 border-b border-gray-50"><h3 className="text-lg font-bold text-gray-800">Upcoming Transactions</h3></div>
+                  {upcomingTxs.length === 0 && <div className="p-6 text-center text-gray-400 font-bold text-sm">No scheduled payments.</div>}
+                  {upcomingTxs.map((tx) => (
+                    <div key={tx.id} onClick={() => { setSelectedTx({ id: tx.id, txPrefix: '-', txColor: tx.color || 'bg-slate-500', textColor: 'text-gray-800', absAmount: Math.abs(Number(tx.amount)).toFixed(2), description: tx.name, type: 'Scheduled Payment', account: `360 Checking (...${accountNumber})`, formattedDate: tx.date || formatDate(tx.next_date), status: 'Pending' }); setActiveModal('tx_details'); }} className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group">
+                      <div className="flex items-center space-x-3 min-w-0 pr-2">
+                        <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-gray-800 truncate">{tx.name}</div>
+                          <div className="text-[11px] text-gray-500 truncate">{tx.category || 'General'}</div>
                         </div>
-
                       </div>
-                    ))}
-                  </div>
-
-                  {/* REVOKE ALL BUTTON & FOOTER NOTE */}
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2">
-                    <p className="text-[11px] text-gray-400 leading-relaxed max-w-lg">
-                      <span className="font-bold text-gray-600">Security Notice:</span> Revoking a device immediately invalidates its JWT authentication token. If you recognize an unfamiliar device, revoke access immediately and update your password at a branch.
-                    </p>
-                    
-                    {deviceSessions.length > 1 && (
-                      <button 
-                        onClick={() => handleRevokeDevice('all-others')}
-                        className="w-full sm:w-auto shrink-0 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center justify-center shadow-sm"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                        Revoke All Other Devices
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-
-            </div>
-          )}
-            </div>
-
-            <div className="lg:col-span-5 flex flex-col space-y-4 md:space-y-6">
-              
-              <div className="bg-white rounded-xl shadow p-5 md:p-6 relative">
-                <h3 className="text-lg font-bold text-gray-800 mb-6">Banking Features</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                  <button onClick={() => handleSecureAction('zelle')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-[#f1e6ff] rounded-lg transition group focus:outline-none">
-                    <span className="text-[14px] font-bold text-[#7413dc] italic mb-1">Zelle<span className="text-[8px] align-top">®</span></span>
-                    <span className="text-[11px] text-gray-600 font-medium group-hover:text-[#7413dc]">Send Money</span>
-                  </button>
-                  <button onClick={() => handleSecureAction('wire')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-blue-50 rounded-lg transition group focus:outline-none">
-                    <svg className="w-6 h-6 text-[#004879] group-hover:text-[#0071ce] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                    <span className="text-[11px] text-gray-600 font-medium group-hover:text-[#0071ce]">Wire Transfer</span>
-                  </button>
-                  <button onClick={() => handleSecureAction('lock')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-red-50 rounded-lg transition group focus:outline-none">
-                    <svg className="w-6 h-6 text-[#004879] group-hover:text-red-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    <span className="text-[11px] text-gray-600 font-medium group-hover:text-red-500">Lock Cards</span>
-                  </button>
-                  <button onClick={() => handleSecureAction('statement')} className="flex flex-col items-center justify-center py-4 bg-gray-50 hover:bg-emerald-50 rounded-lg transition group focus:outline-none">
-                    <svg className="w-6 h-6 text-[#004879] group-hover:text-emerald-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <span className="text-[11px] text-gray-600 font-medium group-hover:text-emerald-500">Statements</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow flex flex-col">
-                <div className="p-5 md:p-6 pb-4 border-b border-gray-50"><h3 className="text-lg font-bold text-gray-800">Upcoming Transactions</h3></div>
-                {upcomingTxs.length === 0 && <div className="p-6 text-center text-gray-400 font-bold text-sm">No scheduled payments.</div>}
-                {upcomingTxs.map((tx) => (
-                  <div 
-                    key={tx.id} 
-                    onClick={() => {
-                      setSelectedTx({
-                        id: tx.id,
-                        txPrefix: '-',
-                        txColor: tx.color || 'bg-slate-500',
-                        textColor: 'text-gray-800',
-                        absAmount: Math.abs(Number(tx.amount)).toFixed(2),
-                        description: tx.name,
-                        type: 'Scheduled Payment',
-                        account: `360 Checking (...${accountNumber})`,
-                        formattedDate: tx.date || formatDate(tx.next_date),
-                        status: 'Pending'
-                      });
-                      setActiveModal('tx_details');
-                    }}
-                    className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group"
-                  >
-                    <div className="flex items-center space-x-3 min-w-0 pr-2">
-                      <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
-                      <div className="min-w-0">
-                        <div className="font-bold text-sm text-gray-800 truncate">{tx.name}</div>
-                        <div className="text-[11px] text-gray-500 truncate">{tx.category || 'General'}</div>
+                      <div className="text-right shrink-0">
+                        <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toFixed(2)}</div>
+                        <div className="text-[11px] text-gray-500 truncate">{tx.date || formatDate(tx.next_date)}</div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toFixed(2)}</div>
-                      <div className="text-[11px] text-gray-500 truncate">{tx.date || formatDate(tx.next_date)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div 
-                onClick={() => setActiveModal('spending_details')}
-                className="bg-white rounded-xl shadow p-5 md:p-6 relative cursor-pointer hover:shadow-md transition group border border-transparent hover:border-[#0071ce]"
-              >
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                  <h3 className="text-lg font-bold text-gray-800 group-hover:text-[#0071ce] transition">Spending Summary</h3>
-                  <span className="text-[#0071ce] font-bold text-sm opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">View Details &rarr;</span>
+                  ))}
                 </div>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex text-sm mb-2 justify-between gap-2">
-                      <span className="font-bold text-gray-800 truncate">Total Inflow</span> 
-                      <span className="font-bold text-emerald-600 shrink-0">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner">
-                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalInflow === 0 ? 0 : (totalInflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
-                    </div>
+
+                <div onClick={() => setActiveModal('spending_details')} className="bg-white rounded-xl shadow p-5 md:p-6 relative cursor-pointer hover:shadow-md transition group border border-transparent hover:border-[#0071ce]">
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                    <h3 className="text-lg font-bold text-gray-800 group-hover:text-[#0071ce] transition">Spending Summary</h3>
+                    <span className="text-[#0071ce] font-bold text-sm opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">View Details &rarr;</span>
                   </div>
-                  <div>
-                    <div className="flex text-sm mb-2 justify-between gap-2">
-                      <span className="font-bold text-gray-800 truncate">Total Outflow</span> 
-                      <span className="font-bold text-[#dd0031] shrink-0">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                  <div className="space-y-6">
+                    <div>
+                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Inflow</span> <span className="font-bold text-emerald-600 shrink-0">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                      <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner"><div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalInflow === 0 ? 0 : (totalInflow / (totalInflow+totalOutflow)) * 100}%` }}></div></div>
                     </div>
-                    <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden shadow-inner">
-                      <div className="bg-[#dd0031] h-full rounded-full" style={{ width: `${totalOutflow === 0 ? 0 : (totalOutflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
+                    <div>
+                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Outflow</span> <span className="font-bold text-[#dd0031] shrink-0">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                      <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden shadow-inner"><div className="bg-[#dd0031] h-full rounded-full" style={{ width: `${totalOutflow === 0 ? 0 : (totalOutflow / (totalInflow+totalOutflow)) * 100}%` }}></div></div>
                     </div>
                   </div>
                 </div>
               </div>
+            )}
 
-            </div>
-            {/* =========================================================================
-            60-SECOND INACTIVITY WARNING MODAL
-           ========================================================================= */}
-        {logoutCountdown <= 60 && logoutCountdown > 0 && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-gray-100 text-center relative animate-in zoom-in-95 duration-200">
-              
-              {/* Warning Icon */}
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <svg className="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            {/* 60-SECOND INACTIVITY WARNING MODAL */}
+            {logoutCountdown <= 60 && logoutCountdown > 0 && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-gray-100 text-center relative animate-in zoom-in-95 duration-200">
+                  <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                    <svg className="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Session Expiring Soon</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed mb-6">For your security, we automatically log you out when you're inactive. Your account will be signed out in:</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl py-3 px-6 mb-6 inline-block">
+                    <span className="text-3xl font-black font-mono text-amber-600 tracking-wider">{formatCountdown(logoutCountdown)}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button onClick={() => setLogoutCountdown(900)} className="flex-1 bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow-md focus:outline-none">Stay Logged In</button>
+                    <button onClick={() => { supabase.auth.signOut(); router.push('/'); }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl text-sm transition focus:outline-none">Sign Out Now</button>
+                  </div>
+                  <div className="mt-4 text-[11px] text-gray-400">🔒 Any unsaved transfers will be cancelled upon automatic signout.</div>
+                </div>
               </div>
-
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Session Expiring Soon</h3>
-              <p className="text-sm text-gray-600 leading-relaxed mb-6">
-                For your security, we automatically log you out when you're inactive. Your account will be signed out in:
-              </p>
-
-              {/* Giant Countdown Badge */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl py-3 px-6 mb-6 inline-block">
-                <span className="text-3xl font-black font-mono text-amber-600 tracking-wider">
-                  {formatCountdown(logoutCountdown)}
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button 
-                  onClick={() => setLogoutCountdown(900)}
-                  className="flex-1 bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow-md focus:outline-none"
-                >
-                  Stay Logged In
-                </button>
-                <button 
-                  onClick={() => { supabase.auth.signOut(); router.push('/'); }}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl text-sm transition focus:outline-none"
-                >
-                  Sign Out Now
-                </button>
-              </div>
-
-              <div className="mt-4 text-[11px] text-gray-400">
-                🔒 Any unsaved transfers will be cancelled upon automatic signout.
-              </div>
-
-            </div>
-          </div>
-        )}
+            )}
           </main>
         </div>
       </div>
