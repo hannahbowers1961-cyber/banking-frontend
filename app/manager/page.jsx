@@ -28,7 +28,7 @@ export default function ManagerDashboard() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
   
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
 
   const fetchManagerData = async () => {
     const { data: { user } } = await supabase.auth.getUser();

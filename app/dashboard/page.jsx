@@ -7,7 +7,7 @@ import { supabase } from '../../utils/supabase';
 
 export default function ClientDashboard() {
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
   
   const [activeTab, setActiveTab] = useState('checking'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

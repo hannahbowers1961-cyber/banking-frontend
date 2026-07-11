@@ -7,7 +7,7 @@ import { supabase } from '../utils/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
   
   // Navigation & Step State
   const [step, setStep] = useState('credentials'); // 'credentials' | '2fa'
