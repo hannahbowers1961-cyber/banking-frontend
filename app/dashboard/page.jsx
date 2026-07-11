@@ -279,11 +279,11 @@ export default function ClientDashboard() {
           <div className="flex items-center space-x-4">
             <div className={`w-10 h-10 rounded-full ${txColor} text-white flex items-center justify-center font-bold text-xl shadow-sm group-hover:scale-105 transition-transform`}>{iconChar}</div>
             <div>
-              <div className="font-bold text-base text-gray-800 capitalize">{txDescription}</div>
+              <div className="font-bold text-base text-gray-800 capitalize line-clamp-1">{txDescription}</div>
               <div className="text-xs text-gray-500 capitalize">{tx.status}</div>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0 ml-2">
             <div className={`font-semibold text-base ${textColor}`}>{txPrefix}{absAmount}</div>
             <div className="text-xs text-gray-500">{formatDate(tx.created_at)}</div>
           </div>
@@ -371,13 +371,13 @@ export default function ClientDashboard() {
               {activeTab === 'checking' && (
                 <>
                   <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300">
-                    <h2 className="text-xl font-bold text-gray-800 mb-1">360 Checking (...{accountNumber})</h2>
-                    <div className="text-[40px] font-bold text-[#004879] leading-none mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-1 line-clamp-1">360 Checking (...{accountNumber})</h2>
+                    <div className="text-3xl md:text-[40px] font-bold text-[#004879] leading-none mb-6 tracking-tight truncate">
                       ${Number(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="border-t border-gray-100 pt-5 mb-6">
-                      <h2 className="text-xl font-bold text-gray-800 mb-1">360 Savings (...{savingsAccountNumber})</h2>
-                      <div className="text-2xl font-bold text-[#004879] leading-none">
+                      <h2 className="text-xl font-bold text-gray-800 mb-1 line-clamp-1">360 Savings (...{savingsAccountNumber})</h2>
+                      <div className="text-xl md:text-2xl font-bold text-[#004879] leading-none tracking-tight truncate">
                         ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
@@ -399,19 +399,22 @@ export default function ClientDashboard() {
 
               {activeTab === 'savings' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-1">360 Performance Savings</h2>
-                  <p className="text-gray-500 text-sm mb-6">Account ending in ...{savingsAccountNumber}</p>
-                  <div className="bg-[#e8eef3] rounded-lg p-6 mb-8 flex justify-between items-center border border-blue-100">
-                    <div>
-                      <div className="text-sm text-gray-600 font-bold uppercase tracking-wider mb-1">Available Balance</div>
-                      <div className="text-[48px] font-bold text-[#004879] leading-none">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 truncate">360 Performance Savings</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm mb-6 truncate">Account ending in ...{savingsAccountNumber}</p>
+                  
+                  <div className="bg-[#e8eef3] rounded-lg p-4 sm:p-6 mb-8 flex justify-between items-center border border-blue-100 min-w-0">
+                    <div className="w-full min-w-0">
+                      <div className="text-xs sm:text-sm text-gray-600 font-bold uppercase tracking-wider mb-1 truncate">Available Balance</div>
+                      {/* THIS IS THE SCALED NUMBER: */}
+                      <div className="text-2xl sm:text-3xl md:text-[48px] font-bold text-[#004879] leading-none tracking-tight truncate">
                         ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">Add Money</button>
-                    <button onClick={() => handleSecureAction('transfer')} className="bg-blue-50 text-[#0071ce] hover:bg-blue-100 font-bold py-3 rounded transition shadow-sm focus:outline-none">Transfer Out</button>
+
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
+                    <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Add Money</button>
+                    <button onClick={() => handleSecureAction('transfer')} className="bg-blue-50 text-[#0071ce] hover:bg-blue-100 font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Transfer Out</button>
                   </div>
                 </div>
               )}
@@ -420,20 +423,20 @@ export default function ClientDashboard() {
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
                   {creditAccounts.length > 0 ? creditAccounts.map(credit => (
                     <div key={credit.id} className="mb-10 border-b pb-6 last:border-b-0">
-                      <div className="flex items-start justify-between mb-8">
-                        <div>
-                          <h2 className="text-2xl font-bold text-gray-800">{credit.card_name}</h2>
-                          <p className="text-gray-500 text-sm">Card ending in ...{credit.card_number.slice(-4)}</p>
+                      <div className="flex items-start justify-between mb-6 sm:mb-8">
+                        <div className="min-w-0 pr-4">
+                          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{credit.card_name}</h2>
+                          <p className="text-gray-500 text-xs sm:text-sm">Card ending in ...{credit.card_number.slice(-4)}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-8 mb-8">
-                        <div>
-                          <div className="text-sm text-gray-600 font-bold mb-1">Current Balance</div>
-                          <div className="text-3xl font-bold text-gray-800">${parseFloat(credit.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-8 mb-8">
+                        <div className="min-w-0">
+                          <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1 truncate">Current Balance</div>
+                          <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 tracking-tight truncate">${parseFloat(credit.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                         </div>
-                        <div>
-                          <div className="text-sm text-gray-600 font-bold mb-1">Available Credit</div>
-                          <div className="text-3xl font-bold text-emerald-600">${(parseFloat(credit.credit_limit) - parseFloat(credit.balance)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div className="min-w-0">
+                          <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1 truncate">Available Credit</div>
+                          <div className="text-xl sm:text-2xl md:text-3xl font-bold text-emerald-600 tracking-tight truncate">${(parseFloat(credit.credit_limit) - parseFloat(credit.balance)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                         </div>
                       </div>
                       <button onClick={() => handlePayDebtModal('credit', credit)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded mb-8 transition shadow-sm focus:outline-none">
@@ -452,25 +455,25 @@ export default function ClientDashboard() {
                     const paidPct = ((loan.original_principal - loan.current_balance) / loan.original_principal) * 100;
                     return (
                       <div key={loan.id} className="mb-10 border-b pb-6 last:border-b-0">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-1">{loan.loan_name}</h2>
-                        <p className="text-gray-500 text-sm mb-8">Account ending in ...{loan.account_number.slice(-4)}</p>
-                        <div className="bg-gray-50 rounded-xl p-6 mb-8 shadow-sm">
-                          <div className="flex justify-between items-end mb-4">
-                            <div>
-                              <div className="text-sm text-gray-600 font-bold uppercase mb-1">Remaining Principal</div>
-                              <div className="text-[40px] font-bold text-gray-800 leading-none">${parseFloat(loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 truncate">{loan.loan_name}</h2>
+                        <p className="text-gray-500 text-sm mb-6 sm:mb-8">Account ending in ...{loan.account_number.slice(-4)}</p>
+                        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mb-8 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs sm:text-sm text-gray-600 font-bold uppercase mb-1 truncate">Remaining Principal</div>
+                              <div className="text-3xl md:text-[40px] font-bold text-gray-800 leading-none tracking-tight truncate">${parseFloat(loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-[#dd0031]">${parseFloat(loan.monthly_payment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                              <div className="text-xs text-gray-500 font-bold">Due {formatDate(loan.next_payment_date)}</div>
+                            <div className="sm:text-right shrink-0 mt-2 sm:mt-0">
+                              <div className="text-base sm:text-lg font-bold text-[#dd0031] tracking-tight">${parseFloat(loan.monthly_payment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                              <div className="text-[10px] sm:text-xs text-gray-500 font-bold truncate">Due {formatDate(loan.next_payment_date)}</div>
                             </div>
                           </div>
                           <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-2 shadow-inner">
                             <div className="bg-emerald-500 h-full" style={{ width: `${paidPct}%` }}></div>
                           </div>
-                          <div className="flex justify-between text-xs font-bold text-gray-500">
-                            <span>${(loan.original_principal - loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Paid</span>
-                            <span>${parseFloat(loan.original_principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Loan</span>
+                          <div className="flex justify-between text-[10px] sm:text-xs font-bold text-gray-500">
+                            <span className="truncate pr-2">${(loan.original_principal - loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Paid</span>
+                            <span className="truncate pl-2">${parseFloat(loan.original_principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Loan</span>
                           </div>
                         </div>
                         <button onClick={() => handlePayDebtModal('loan', loan)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
@@ -487,12 +490,12 @@ export default function ClientDashboard() {
               {activeTab === 'rewards' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
                   <div className="flex items-center justify-center flex-col py-10 border-b border-gray-100">
-                    <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4 text-4xl shadow-inner">🏆</div>
-                    <h2 className="text-2xl font-bold text-gray-800">Your Rewards Balance</h2>
-                    <div className="text-[48px] font-extrabold text-[#0071ce] mt-2">
-                      {rewardMiles.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xl text-gray-500">Miles</span>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4 text-3xl sm:text-4xl shadow-inner">🏆</div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 text-center">Your Rewards Balance</h2>
+                    <div className="text-4xl md:text-[48px] font-extrabold text-[#0071ce] mt-2 tracking-tight truncate w-full px-2 sm:px-4 text-center">
+                      {rewardMiles.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-lg sm:text-xl text-gray-500 tracking-normal">Miles</span>
                     </div>
-                    <p className="text-sm text-emerald-600 font-bold mt-2">
+                    <p className="text-xs sm:text-sm text-emerald-600 font-bold mt-2 text-center truncate w-full px-2">
                       ≈ ${rewardValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in Travel Value
                     </p>
                   </div>
@@ -578,16 +581,16 @@ export default function ClientDashboard() {
                     }}
                     className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group"
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
-                      <div>
-                        <div className="font-bold text-sm text-gray-800">{tx.name}</div>
-                        <div className="text-[11px] text-gray-500">{tx.category || 'General'}</div>
+                    <div className="flex items-center space-x-3 min-w-0 pr-2">
+                      <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-gray-800 truncate">{tx.name}</div>
+                        <div className="text-[11px] text-gray-500 truncate">{tx.category || 'General'}</div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toFixed(2)}</div>
-                      <div className="text-[11px] text-gray-500">{tx.date || formatDate(tx.next_date)}</div>
+                      <div className="text-[11px] text-gray-500 truncate">{tx.date || formatDate(tx.next_date)}</div>
                     </div>
                   </div>
                 ))}
@@ -599,22 +602,22 @@ export default function ClientDashboard() {
               >
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
                   <h3 className="text-lg font-bold text-gray-800 group-hover:text-[#0071ce] transition">Spending Summary</h3>
-                  <span className="text-[#0071ce] font-bold text-sm opacity-0 group-hover:opacity-100 transition">View Details &rarr;</span>
+                  <span className="text-[#0071ce] font-bold text-sm opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">View Details &rarr;</span>
                 </div>
                 <div className="space-y-6">
                   <div>
-                    <div className="flex text-sm mb-2 justify-between">
-                      <span className="font-bold text-gray-800">Total Inflow</span> 
-                      <span className="font-bold text-emerald-600">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <div className="flex text-sm mb-2 justify-between gap-2">
+                      <span className="font-bold text-gray-800 truncate">Total Inflow</span> 
+                      <span className="font-bold text-emerald-600 shrink-0">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                     </div>
                     <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner">
                       <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalInflow === 0 ? 0 : (totalInflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
                     </div>
                   </div>
                   <div>
-                    <div className="flex text-sm mb-2 justify-between">
-                      <span className="font-bold text-gray-800">Total Outflow</span> 
-                      <span className="font-bold text-[#dd0031]">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <div className="flex text-sm mb-2 justify-between gap-2">
+                      <span className="font-bold text-gray-800 truncate">Total Outflow</span> 
+                      <span className="font-bold text-[#dd0031] shrink-0">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                     </div>
                     <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden shadow-inner">
                       <div className="bg-[#dd0031] h-full rounded-full" style={{ width: `${totalOutflow === 0 ? 0 : (totalOutflow / (totalInflow+totalOutflow)) * 100}%` }}></div>
@@ -638,32 +641,32 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200 border-t-8 border-[#0071ce]">
             <form onSubmit={executeDebtPayment}>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Make a Payment</h2>
-                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+                <h2 className="text-2xl font-bold text-gray-800 truncate pr-2">Make a Payment</h2>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
               </div>
               
-              <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-100">
-                <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Paying Towards</div>
-                <div className="font-bold text-gray-800">{targetDebt.name}</div>
-                <div className="text-sm text-gray-600 mt-1">Current Balance: <span className="font-bold text-[#dd0031]">${parseFloat(targetDebt.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+              <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-100 min-w-0">
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1 truncate">Paying Towards</div>
+                <div className="font-bold text-gray-800 truncate">{targetDebt.name}</div>
+                <div className="text-sm text-gray-600 mt-1 truncate">Current Balance: <span className="font-bold text-[#dd0031]">${parseFloat(targetDebt.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
               </div>
 
               {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-sm border border-red-200">{errorMsg}</div>}
 
-              <label className="block text-sm font-bold text-gray-700 mb-2">Pay From</label>
-              <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white" required>
+              <label className="block text-sm font-bold text-gray-700 mb-2 truncate">Pay From</label>
+              <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white truncate" required>
                 <option value="checking">360 Checking (...{accountNumber}) - ${parseFloat(checkingBalance).toFixed(2)}</option>
               </select>
 
-              <label className="block text-sm font-bold text-gray-700 mb-2">Payment Amount</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2 truncate">Payment Amount</label>
               <div className="relative mb-8">
                 <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
                 <input type="number" step="0.01" required className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
               </div>
               
               <div className="flex justify-end space-x-4">
-                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50" disabled={isTransferring}>Cancel</button>
-                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50">
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50 shrink-0" disabled={isTransferring}>Cancel</button>
+                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50 truncate">
                   {isTransferring ? 'Processing...' : 'Submit Payment'}
                 </button>
               </div>
@@ -695,29 +698,29 @@ export default function ClientDashboard() {
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 animate-in slide-in-from-bottom-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-gray-800">Transaction Details</h2>
-              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+              <h2 className="text-lg font-bold text-gray-800 truncate pr-2">Transaction Details</h2>
+              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
             </div>
-            <div className="text-center mb-8">
+            <div className="text-center mb-8 min-w-0 w-full px-2">
               <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl text-white shadow-sm ${selectedTx.txColor}`}>
                 {selectedTx.txPrefix === '+' ? '+' : '-'}
               </div>
-              <div className={`text-4xl font-black ${selectedTx.textColor}`}>
-                {selectedTx.txPrefix}${selectedTx.absAmount}
+              <div className={`text-3xl sm:text-4xl font-black ${selectedTx.textColor} tracking-tight truncate w-full`}>
+                {selectedTx.txPrefix}{selectedTx.absAmount}
               </div>
-              <div className="text-gray-500 font-medium capitalize mt-1">{selectedTx.status}</div>
+              <div className="text-gray-500 font-medium capitalize mt-1 truncate">{selectedTx.status}</div>
             </div>
             <div className="space-y-4 border-t border-gray-100 pt-6">
-              <div className="flex justify-between"><span className="text-gray-500 text-sm">Description</span><span className="font-bold text-gray-800 text-right">{selectedTx.description}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 text-sm">Type</span><span className="font-bold text-gray-800 capitalize text-right">{selectedTx.type}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 text-sm">Account</span><span className="font-bold text-gray-800 text-right">{selectedTx.account}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 text-sm">Date</span><span className="font-bold text-gray-800 text-right">{selectedTx.formattedDate}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Description</span><span className="font-bold text-gray-800 text-right truncate">{selectedTx.description}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Type</span><span className="font-bold text-gray-800 capitalize text-right truncate">{selectedTx.type}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Account</span><span className="font-bold text-gray-800 text-right truncate">{selectedTx.account}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Date</span><span className="font-bold text-gray-800 text-right truncate">{selectedTx.formattedDate}</span></div>
               
               {selectedTx.formattedTime && (
-                <div className="flex justify-between"><span className="text-gray-500 text-sm">Time</span><span className="font-bold text-gray-800 text-right">{selectedTx.formattedTime}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Time</span><span className="font-bold text-gray-800 text-right truncate">{selectedTx.formattedTime}</span></div>
               )}
               {selectedTx.id && !selectedTx.id.toString().startsWith('up-') && (
-                <div className="flex justify-between"><span className="text-gray-500 text-sm">Reference ID</span><span className="font-mono text-xs text-gray-800 mt-1 text-right">{selectedTx.reference_id || selectedTx.id.split('-')[0].toUpperCase()}</span></div>
+                <div className="flex justify-between gap-2"><span className="text-gray-500 text-sm shrink-0">Reference ID</span><span className="font-mono text-xs text-gray-800 mt-1 text-right truncate">{selectedTx.reference_id || selectedTx.id.split('-')[0].toUpperCase()}</span></div>
               )}
             </div>
             <button onClick={() => setActiveModal('none')} className="w-full mt-8 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded transition focus:outline-none">Close Details</button>
@@ -730,27 +733,27 @@ export default function ClientDashboard() {
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 md:p-8 animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Cash Flow Insights</h2>
-                <p className="text-sm text-gray-500 mt-1">Dynamic Breakdown</p>
+              <div className="min-w-0 pr-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">Cash Flow Insights</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">Dynamic Breakdown</p>
               </div>
-              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-xl text-center">
-                <div className="w-12 h-12 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">↓</div>
-                <div className="text-sm font-bold text-emerald-700 uppercase tracking-wider">Money In</div>
-                <div className="text-3xl font-black text-emerald-600 mt-1">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
+              <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-6 rounded-xl text-center min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 text-lg sm:text-xl">↓</div>
+                <div className="text-[10px] sm:text-sm font-bold text-emerald-700 uppercase tracking-wider truncate">Money In</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-black text-emerald-600 mt-1 tracking-tight truncate">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
               </div>
-              <div className="bg-red-50 border border-red-100 p-6 rounded-xl text-center">
-                <div className="w-12 h-12 bg-red-200 text-red-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">↑</div>
-                <div className="text-sm font-bold text-red-700 uppercase tracking-wider">Money Out</div>
-                <div className="text-3xl font-black text-[#dd0031] mt-1">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+              <div className="bg-red-50 border border-red-100 p-4 sm:p-6 rounded-xl text-center min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-200 text-red-700 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 text-lg sm:text-xl">↑</div>
+                <div className="text-[10px] sm:text-sm font-bold text-red-700 uppercase tracking-wider truncate">Money Out</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-black text-[#dd0031] mt-1 tracking-tight truncate">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
               </div>
             </div>
 
-            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">Top Spending Categories</h3>
+            <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 truncate">Top Spending Categories</h3>
             <div className="space-y-4">
               {['Food', 'Bills', 'Shopping', 'Transfer', 'General'].map(cat => {
                  const amount = transactions.filter(tx => tx.sender_account_id === accountId && tx.category === cat).reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
@@ -758,15 +761,15 @@ export default function ClientDashboard() {
                  const pct = totalOutflow > 0 ? (amount / totalOutflow) * 100 : 0;
                  return (
                   <div key={cat} className="mb-3">
-                    <div className="flex justify-between text-sm mb-1"><span className="font-bold text-gray-700">{cat}</span><span className="font-bold text-gray-800">${amount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs sm:text-sm mb-1 gap-2"><span className="font-bold text-gray-700 truncate">{cat}</span><span className="font-bold text-gray-800 shrink-0">${amount.toFixed(2)}</span></div>
                     <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#0071ce] h-full rounded-full" style={{ width: `${pct}%` }}></div></div>
                   </div>
                  )
               })}
-              {totalOutflow === 0 && <p className="text-gray-500 text-sm">No spending data available yet.</p>}
+              {totalOutflow === 0 && <p className="text-gray-500 text-xs sm:text-sm">No spending data available yet.</p>}
             </div>
 
-            <button onClick={() => setActiveModal('none')} className="w-full mt-8 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded transition focus:outline-none">
+            <button onClick={() => setActiveModal('none')} className="w-full mt-8 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded transition focus:outline-none text-sm sm:text-base">
               Close Insights
             </button>
           </div>
@@ -778,46 +781,46 @@ export default function ClientDashboard() {
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 md:p-8 animate-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
             <form onSubmit={(e) => handleExternalTransfer(e, 'wire')}>
-              <div className="flex justify-between items-center mb-8 border-b pb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-[#004879]">Wire Transfer</h2>
-                  <p className="text-sm text-gray-500 mt-1">Secure International & Domestic Routing</p>
+              <div className="flex justify-between items-center mb-6 sm:mb-8 border-b pb-4">
+                <div className="min-w-0 pr-4">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#004879] truncate">Wire Transfer</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">Secure International & Domestic Routing</p>
                 </div>
-                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
               </div>
 
-              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-6 font-bold text-sm border border-red-200">{errorMsg}</div>}
+              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-6 font-bold text-xs sm:text-sm border border-red-200">{errorMsg}</div>}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Name / Business</label>
-                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="John Doe" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 truncate">Recipient Name / Business</label>
+                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white text-sm sm:text-base" placeholder="John Doe" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Recipient Bank Name</label>
-                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="Standard Chartered Bank" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 truncate">Recipient Bank Name</label>
+                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white text-sm sm:text-base" placeholder="Standard Chartered Bank" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Account Number / UUID</label>
-                  <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="Enter recipient UUID" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 truncate">Account Number / UUID</label>
+                  <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono text-sm sm:text-base" placeholder="Enter recipient UUID" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Routing Number / SWIFT</label>
-                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono" placeholder="BOFAUS3N" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 truncate">Routing Number / SWIFT</label>
+                  <input type="text" className="w-full border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white font-mono text-sm sm:text-base" placeholder="BOFAUS3N" />
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-8">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Wire Amount</label>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 sm:p-6 mb-8">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 truncate">Wire Amount</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-3 text-gray-700 font-bold text-xl">$</span>
-                  <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full border border-gray-300 rounded pl-10 pr-4 py-3 font-mono text-xl focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="0.00" />
+                  <span className="absolute left-4 top-3 text-gray-700 font-bold text-lg sm:text-xl">$</span>
+                  <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full border border-gray-300 rounded pl-8 sm:pl-10 pr-4 py-3 font-mono text-lg sm:text-xl focus:outline-none focus:ring-2 focus:ring-[#0071ce] text-gray-900 bg-white" placeholder="0.00" />
                 </div>
               </div>
               
               <div className="flex justify-end space-x-4">
-                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold hover:text-gray-800 focus:outline-none disabled:opacity-50" disabled={isTransferring}>Cancel</button>
-                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-8 py-3 rounded font-bold transition shadow-md focus:outline-none disabled:opacity-50">
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-500 font-bold hover:text-gray-800 focus:outline-none disabled:opacity-50 shrink-0 text-sm sm:text-base" disabled={isTransferring}>Cancel</button>
+                <button type="submit" disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 sm:px-8 py-3 rounded font-bold transition shadow-md focus:outline-none disabled:opacity-50 truncate text-sm sm:text-base">
                   {isTransferring ? 'Processing...' : 'Authorize Wire'}
                 </button>
               </div>
@@ -830,20 +833,20 @@ export default function ClientDashboard() {
       {activeModal === 'transfer' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold text-[#004879] mb-6">Internal Transfer</h2>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Direction</label>
-            <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white" value={transferDirection} onChange={(e) => setTransferDirection(e.target.value)}>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#004879] mb-6 truncate">Internal Transfer</h2>
+            <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2 truncate">Direction</label>
+            <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white text-sm sm:text-base truncate" value={transferDirection} onChange={(e) => setTransferDirection(e.target.value)}>
               <option value="c2s">360 Checking (...{accountNumber})  →  360 Savings (...{savingsAccountNumber})</option>
               <option value="s2c">360 Savings (...{savingsAccountNumber})  →  360 Checking (...{accountNumber})</option>
             </select>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Amount</label>
+            <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2 truncate">Amount</label>
             <div className="relative mb-8">
               <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
-              <input type="number" step="0.01" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+              <input type="number" step="0.01" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono text-gray-900 bg-white text-sm sm:text-base" placeholder="0.00" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
             </div>
             <div className="flex justify-end space-x-4">
-              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50" disabled={isTransferring}>Cancel</button>
-              <button onClick={executeInternalTransfer} disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50">
+              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold disabled:opacity-50 shrink-0 text-sm sm:text-base" disabled={isTransferring}>Cancel</button>
+              <button onClick={executeInternalTransfer} disabled={isTransferring} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold transition disabled:opacity-50 truncate text-sm sm:text-base">
                 {isTransferring ? 'Processing...' : 'Transfer Now'}
               </button>
             </div>
@@ -857,21 +860,21 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200 border-t-8 border-[#7413dc]">
             <form onSubmit={(e) => handleExternalTransfer(e, 'zelle')}>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-extrabold text-[#7413dc] italic tracking-tighter">Zelle<span className="text-sm align-top">®</span></h2>
-                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#7413dc] italic tracking-tighter truncate pr-2">Zelle<span className="text-xs sm:text-sm align-top">®</span></h2>
+                <button type="button" onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
               </div>
-              <p className="text-sm text-gray-600 mb-6">Send money to friends, family, and others you trust, right from your app.</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-6 line-clamp-2 sm:line-clamp-none">Send money to friends, family, and others you trust, right from your app.</p>
               
-              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-sm border border-red-200">{errorMsg}</div>}
+              {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-xs sm:text-sm border border-red-200">{errorMsg}</div>}
 
-              <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} placeholder="Recipient Account UUID" className="w-full border border-gray-300 rounded px-4 py-3 mb-4 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
+              <input type="text" required value={receiverId} onChange={(e) => setReceiverId(e.target.value)} placeholder="Recipient Account UUID" className="w-full border border-gray-300 rounded px-4 py-3 mb-4 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white text-sm sm:text-base" />
               <div className="relative mb-4">
                 <span className="absolute left-4 top-3 text-gray-700 font-bold">$</span>
-                <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white" />
+                <input type="number" step="0.01" required value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded pl-8 pr-4 py-3 font-mono focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white text-sm sm:text-base" />
               </div>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this for? (Optional)" className="w-full border border-gray-300 rounded px-4 py-3 mb-8 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white text-sm" />
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this for? (Optional)" className="w-full border border-gray-300 rounded px-4 py-3 mb-8 focus:outline-none focus:border-[#7413dc] text-gray-900 placeholder-gray-400 bg-white text-xs sm:text-sm" />
 
-              <button type="submit" disabled={isTransferring} className="w-full bg-[#7413dc] hover:bg-[#5b0ea8] text-white font-bold py-3 rounded transition shadow-md focus:outline-none disabled:opacity-50">
+              <button type="submit" disabled={isTransferring} className="w-full bg-[#7413dc] hover:bg-[#5b0ea8] text-white font-bold py-3 rounded transition shadow-md focus:outline-none disabled:opacity-50 truncate text-sm sm:text-base">
                 {isTransferring ? 'Processing...' : 'Review & Send'}
               </button>
             </form>
@@ -884,31 +887,31 @@ export default function ClientDashboard() {
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Manage Card Security</h2>
-              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none">✕</button>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate pr-2">Manage Card Security</h2>
+              <button onClick={() => setActiveModal('none')} className="text-gray-400 hover:text-black focus:outline-none shrink-0">✕</button>
             </div>
-            <p className="text-sm text-gray-600 mb-8">Misplaced your card? Lock it instantly to prevent unauthorized transactions.</p>
-            <div className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50">
-              <div>
-                <div className="font-bold text-gray-800">360 Debit Card</div>
-                <div className="text-xs text-gray-500">Ending in ...{accountNumber}</div>
+            <p className="text-xs sm:text-sm text-gray-600 mb-8 line-clamp-2 sm:line-clamp-none">Misplaced your card? Lock it instantly to prevent unauthorized transactions.</p>
+            <div className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50 gap-4">
+              <div className="min-w-0">
+                <div className="font-bold text-sm sm:text-base text-gray-800 truncate">360 Debit Card</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 truncate">Ending in ...{accountNumber}</div>
               </div>
-              <button onClick={() => setIsDebitLocked(!isDebitLocked)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDebitLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
+              <button onClick={() => setIsDebitLocked(!isDebitLocked)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${isDebitLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDebitLocked ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
             {creditAccounts.map(credit => (
-              <div key={credit.id} className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50">
-                <div>
-                  <div className="font-bold text-gray-800">{credit.card_name}</div>
-                  <div className="text-xs text-gray-500">Ending in ...{credit.card_number.slice(-4)}</div>
+              <div key={credit.id} className="flex justify-between items-center p-4 rounded-lg mb-4 bg-gray-50 gap-4">
+                <div className="min-w-0">
+                  <div className="font-bold text-sm sm:text-base text-gray-800 truncate">{credit.card_name}</div>
+                  <div className="text-[10px] sm:text-xs text-gray-500 truncate">Ending in ...{credit.card_number.slice(-4)}</div>
                 </div>
-                <button onClick={() => setIsCreditLocked(!isCreditLocked)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isCreditLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
+                <button onClick={() => setIsCreditLocked(!isCreditLocked)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${isCreditLocked ? 'bg-red-500' : 'bg-gray-300'}`}>
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCreditLocked ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
             ))}
-            <button onClick={() => setActiveModal('none')} className="w-full mt-4 bg-[#004879] hover:bg-[#003456] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
+            <button onClick={() => setActiveModal('none')} className="w-full mt-4 bg-[#004879] hover:bg-[#003456] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">
               Save Security Settings
             </button>
           </div>
@@ -918,53 +921,55 @@ export default function ClientDashboard() {
       {/* STATEMENT / PDF MODAL (RESTORED) */}
       {activeModal === 'statement' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:bg-white print:p-0 print:block">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto print:shadow-none print:max-h-none print:w-full print:p-8 animate-in slide-in-from-bottom-8">
-            <div className="flex justify-between items-end border-b-2 border-[#004879] pb-6 mb-6">
-              <Image src="/capitalone-com-wordmark.png" alt="Logo" width={180} height={60} className="object-contain" priority />
-              <div className="text-right">
-                <h1 className="text-2xl font-black text-gray-800 uppercase tracking-widest">Account Statement</h1>
-                <p className="text-gray-500 font-mono mt-1">Generated: {new Date().toLocaleDateString()}</p>
-                <p className="text-gray-500 font-mono text-sm">Account: 360 Checking (...{accountNumber})</p>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto print:shadow-none print:max-h-none print:w-full print:p-8 animate-in slide-in-from-bottom-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b-2 border-[#004879] pb-4 sm:pb-6 mb-6 gap-4">
+              <Image src="/capitalone-com-wordmark.png" alt="Logo" width={180} height={60} className="object-contain w-32 sm:w-48" priority />
+              <div className="text-left sm:text-right w-full min-w-0">
+                <h1 className="text-xl sm:text-2xl font-black text-gray-800 uppercase tracking-widest truncate">Account Statement</h1>
+                <p className="text-xs sm:text-sm text-gray-500 font-mono mt-1 truncate">Generated: {new Date().toLocaleDateString()}</p>
+                <p className="text-xs sm:text-sm text-gray-500 font-mono truncate">Account: 360 Checking (...{accountNumber})</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-8 mb-8 border-b border-gray-200 pb-8">
-              <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Account Holder</h3>
-                <p className="text-lg font-bold text-gray-800 uppercase">{legalName}</p>
-                <p className="text-gray-600">123 Financial Way</p>
-                <p className="text-gray-600">Richmond, VA 23218</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-8 border-b border-gray-200 pb-8">
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">Account Holder</h3>
+                <p className="text-base sm:text-lg font-bold text-gray-800 uppercase truncate">{legalName}</p>
+                <p className="text-sm sm:text-base text-gray-600 truncate">123 Financial Way</p>
+                <p className="text-sm sm:text-base text-gray-600 truncate">Richmond, VA 23218</p>
               </div>
-              <div className="text-right">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Statement Balance</h3>
-                <div className="text-3xl font-black text-[#004879]">
+              <div className="text-left sm:text-right min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 truncate">Statement Balance</h3>
+                <div className="text-2xl sm:text-3xl font-black text-[#004879] tracking-tight truncate">
                   ${Number(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Transaction Ledger</h3>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-gray-300">
-                  <th className="py-2 text-sm font-bold text-gray-600">Date</th>
-                  <th className="py-2 text-sm font-bold text-gray-600">Description</th>
-                  <th className="py-2 text-sm font-bold text-gray-600 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b border-gray-100">
-                    <td className="py-3 text-sm text-gray-600 font-mono">{formatDate(tx.created_at)}</td>
-                    <td className="py-3 text-sm font-bold text-gray-800 capitalize">{tx.description || tx.type} <span className="text-xs font-normal text-gray-400 block">{tx.status}</span></td>
-                    <td className="py-3 text-sm font-bold text-right font-mono text-gray-800">
-                      {tx.sender_account_id === accountId ? '-' : '+'}${Math.abs(Number(tx.amount)).toFixed(2)}
-                    </td>
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4 truncate">Transaction Ledger</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[400px]">
+                <thead>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="py-2 text-xs sm:text-sm font-bold text-gray-600">Date</th>
+                    <th className="py-2 text-xs sm:text-sm font-bold text-gray-600">Description</th>
+                    <th className="py-2 text-xs sm:text-sm font-bold text-gray-600 text-right">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-10 flex justify-end space-x-4 print:hidden">
-              <button onClick={() => setActiveModal('none')} className="text-gray-500 font-bold hover:text-black focus:outline-none">Close window</button>
-              <button onClick={() => window.print()} className="bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-2 rounded font-bold shadow-md flex items-center focus:outline-none">
+                </thead>
+                <tbody>
+                  {transactions.map((tx) => (
+                    <tr key={tx.id} className="border-b border-gray-100">
+                      <td className="py-3 text-xs sm:text-sm text-gray-600 font-mono whitespace-nowrap pr-2">{formatDate(tx.created_at)}</td>
+                      <td className="py-3 text-xs sm:text-sm font-bold text-gray-800 capitalize line-clamp-1">{tx.description || tx.type} <span className="text-[10px] sm:text-xs font-normal text-gray-400 block truncate">{tx.status}</span></td>
+                      <td className="py-3 text-xs sm:text-sm font-bold text-right font-mono text-gray-800 whitespace-nowrap pl-2">
+                        {tx.sender_account_id === accountId ? '-' : '+'}${Math.abs(Number(tx.amount)).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-end items-center space-y-4 sm:space-y-0 sm:space-x-4 print:hidden">
+              <button onClick={() => setActiveModal('none')} className="w-full sm:w-auto text-gray-500 font-bold hover:text-black focus:outline-none text-sm sm:text-base">Close window</button>
+              <button onClick={() => window.print()} className="w-full sm:w-auto bg-[#0071ce] hover:bg-[#005a8f] text-white px-6 py-3 sm:py-2 rounded font-bold shadow-md flex items-center justify-center focus:outline-none text-sm sm:text-base">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 Print / Save PDF
               </button>
