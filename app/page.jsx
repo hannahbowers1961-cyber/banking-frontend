@@ -72,7 +72,8 @@ export default function LoginPage() {
       await fetch(`${API_URL}/api/auth/send-2fa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email }),
+        // Just send the email to trigger the code:
+        body: JSON.stringify({ email: email }),
       });
     } catch (err) {
       console.error("Failed to trigger 2FA code:", err);
@@ -94,7 +95,8 @@ export default function LoginPage() {
       const response = await fetch(`${API_URL}/api/auth/verify-2fa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authenticatedUser.id, code: otpCode }),
+        // CHANGE THIS LINE: Send email + code instead of userId!
+        body: JSON.stringify({ email: username, code: otpCode }),
       });
 
       const result = await response.json();
