@@ -1,13 +1,12 @@
 "use client";
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
   
   // Navigation & Step State
   const [step, setStep] = useState('credentials'); // 'credentials' | '2fa'
@@ -22,10 +21,47 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Step 2: 2FA State
+  // Step 2: 2FA State (Updated for 8-digit pattern)
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  
+  // Background State for OTP verification
+  const [resolvedEmail, setResolvedEmail] = useState('');
+  const [resolvedName, setResolvedName] = useState('Member');
+
+  // Load remembered username on startup
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('remembered_username');
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setRememberMe(true);
+    }
+  }, []);
+
+  // HELPER: Translate Username to Email & Get Full Name (From your working site!)
+  const lookupUserCredentials = async (input) => {
+    let email = input.trim();
+    let fullName = 'Member';
+    const isEmail = email.includes('@');
+
+    let query = supabase.from('profiles').select('email, full_name');
+    if (isEmail) query = query.eq('email', email);
+    else query = query.eq('username', email);
+
+    const { data: profile, error } = await query.single();
+    
+    if (error && !isEmail) {
+      return { error: `Username not found. Please verify your details.` };
+    }
+
+    if (profile) {
+      email = profile.email;
+      if (profile.full_name) fullName = profile.full_name;
+    }
+
+    return { email, fullName };
+  };
 
   // --- STEP 1: HANDLE PASSWORD AUTH ---
   const handleSignIn = async (e) => {
@@ -41,8 +77,17 @@ export default function LoginPage() {
     if (!newErrors.username && !newErrors.password) {
       setIsLoading(true);
 
+      // 1. Resolve Username to real Email
+      const { email, fullName, error: lookupErr } = await lookupUserCredentials(username);
+      if (lookupErr) { 
+        setServerError(lookupErr); 
+        setIsLoading(false); 
+        return; 
+      }
+
+      // 2. Authenticate with Password
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: username, 
+        email: email, 
         password: password,
       });
 
@@ -52,39 +97,43 @@ export default function LoginPage() {
         return;
       }
 
+      if (rememberMe) localStorage.setItem('remembered_username', username);
+      else localStorage.removeItem('remembered_username');
+
       // --- THE REMEMBER ME BYPASS CHECK ---
-      const isTrustedDevice = localStorage.getItem(`trusted_device_${data.user.id}`) === 'true';
+      const isTrustedDevice = localStorage.getItem(`device_trusted_${email}`) === 'true';
 
       if (isTrustedDevice) {
         router.push('/dashboard');
       } else {
+        // FIRST TIME LOGIN: Send code directly via frontend Supabase Auth!
+        await supabase.auth.signOut(); // Lock vault until code is verified
+        setResolvedEmail(email);
+        setResolvedName(fullName);
         setAuthenticatedUser(data.user);
-        await trigger2FACode(data.user.id, username);
+
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email: email,
+          options: { shouldCreateUser: false }
+        });
+
+        if (otpError) {
+          setServerError(`Failed to send code: ${otpError.message}`);
+          setIsLoading(false);
+          return;
+        }
+
         setStep('2fa');
         setIsLoading(false);
       }
     }
   };
 
-  // --- TRIGGER 2FA GENERATION ---
-  const trigger2FACode = async (userId, email) => {
-    try {
-      await fetch(`${API_URL}/api/auth/send-2fa`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // Just send the email to trigger the code:
-        body: JSON.stringify({ email: email }),
-      });
-    } catch (err) {
-      console.error("Failed to trigger 2FA code:", err);
-    }
-  };
-
-  // --- STEP 2: HANDLE 6-DIGIT CODE VERIFICATION ---
+  // --- STEP 2: HANDLE 8-DIGIT CODE VERIFICATION ---
   const handleVerify2FA = async (e) => {
     e.preventDefault();
-    if (otpCode.trim().length !== 6) {
-      setOtpError('Please enter the 6-digit code.');
+    if (!otpCode || otpCode.trim().length < 6) {
+      setOtpError('Please enter the verification code.');
       return;
     }
 
@@ -92,22 +141,19 @@ export default function LoginPage() {
     setOtpError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/verify-2fa`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // CHANGE THIS LINE: Send email + code instead of userId!
-        body: JSON.stringify({ email: username, code: otpCode }),
+      // Verify directly with Supabase frontend client (Bypasses Render!)
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: resolvedEmail,
+        token: otpCode.trim(),
+        type: 'email'
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setOtpError(result.error || 'Verification failed.');
+      if (error || !data.user) {
+        setOtpError('Invalid or expired code. Please try again.');
         setIsVerifying(false);
       } else {
-        if (rememberMe) {
-          localStorage.setItem(`trusted_device_${authenticatedUser.id}`, 'true');
-        }
+        // Mark device as trusted for future logins
+        localStorage.setItem(`device_trusted_${resolvedEmail}`, 'true');
         router.push('/dashboard');
       }
     } catch (err) {
@@ -116,12 +162,21 @@ export default function LoginPage() {
     }
   };
 
+  // --- RESEND CODE TRIGGER ---
+  const handleResendCode = async () => {
+    setOtpError('');
+    const { error } = await supabase.auth.signInWithOtp({
+      email: resolvedEmail,
+      options: { shouldCreateUser: false }
+    });
+    if (error) setOtpError('Could not resend code. Please wait a moment.');
+    else alert('A new security code has been sent to your email.');
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans text-gray-800 flex flex-col">
       
-      {/* =========================================================================
-          STICKY HEADER
-         ========================================================================= */}
+      {/* STICKY HEADER */}
       <header className="sticky top-0 z-[100] w-full bg-white shadow-md border-b border-gray-200">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
           <div className="flex items-center">
@@ -161,9 +216,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* =========================================================================
-              STEP 1: CREDENTIALS SCREEN
-             ========================================================================= */}
+          {/* STEP 1: CREDENTIALS SCREEN */}
           {step === 'credentials' && (
             <>
               <h1 className="text-center text-[22px] text-gray-900 mb-6 tracking-wide">Sign In</h1>
@@ -268,9 +321,7 @@ export default function LoginPage() {
             </>
           )}
 
-          {/* =========================================================================
-              STEP 2: 6-DIGIT 2FA SCREEN
-             ========================================================================= */}
+          {/* STEP 2: 8-DIGIT 2FA SCREEN */}
           {step === '2fa' && (
             <div className="animate-in fade-in duration-300">
               <div className="text-center mb-6">
@@ -279,7 +330,7 @@ export default function LoginPage() {
                 </div>
                 <h1 className="text-[22px] font-bold text-gray-900 tracking-wide">Two-Step Verification</h1>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                  We've dispatched a 6-digit security code to your registered email address <span className="font-bold text-gray-700">({username})</span>. Please enter it below.
+                  We've dispatched a secure verification code to your registered email address <span className="font-bold text-gray-700">({resolvedEmail})</span>. Please enter it below.
                 </p>
               </div>
 
@@ -292,18 +343,18 @@ export default function LoginPage() {
 
               <form onSubmit={handleVerify2FA} className="flex flex-col space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 text-center">Enter 6-Digit Code</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 text-center">Enter Secure Code</label>
                   <input 
                     type="text" 
-                    maxLength={6}
+                    maxLength={8}
                     value={otpCode}
                     onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, '');
                       setOtpCode(val);
                       if (otpError) setOtpError('');
                     }}
-                    className="w-full text-center text-3xl font-mono tracking-[0.5em] py-3 border border-gray-400 rounded focus:outline-none focus:border-[#0071ce] focus:ring-1 focus:ring-[#0071ce] font-bold text-gray-800 bg-gray-50/50"
-                    placeholder="------"
+                    className="w-full text-center text-2xl md:text-3xl font-mono tracking-[0.3em] py-3 border border-gray-400 rounded focus:outline-none focus:border-[#0071ce] focus:ring-1 focus:ring-[#0071ce] font-bold text-gray-800 bg-gray-50/50"
+                    placeholder="00000000"
                     autoFocus
                     disabled={isVerifying}
                   />
@@ -312,8 +363,8 @@ export default function LoginPage() {
                 <div className="pt-2">
                   <button 
                     type="submit" 
-                    disabled={isVerifying || otpCode.length !== 6} 
-                    className={`w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors ${(isVerifying || otpCode.length !== 6) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={isVerifying || otpCode.length < 6} 
+                    className={`w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors ${(isVerifying || otpCode.length < 6) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {isVerifying ? 'Verifying Code...' : 'Verify & Sign In'}
                   </button>
@@ -323,7 +374,7 @@ export default function LoginPage() {
               <div className="mt-8 border-t border-gray-100 pt-6 text-center flex flex-col space-y-3">
                 <button 
                   type="button"
-                  onClick={() => trigger2FACode(authenticatedUser.id, username)}
+                  onClick={handleResendCode}
                   className="text-xs text-[#00619b] font-bold hover:underline"
                 >
                   Didn't receive a code? Resend email
