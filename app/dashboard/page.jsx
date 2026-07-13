@@ -60,7 +60,7 @@ const [ssn, setSsn] = useState('9842'); // Last 4 digits
 const [profilePhoto, setProfilePhoto] = useState(null);
 const [accountTier, setAccountTier] = useState('360 Premier Gold');
 const [dailyLimit, setDailyLimit] = useState(5000);
-const [logoutCountdown, setLogoutCountdown] = useState(600); // 15 mins
+const [logoutCountdown, setLogoutCountdown] = useState(900); // 15 mins
 // Active & Historical Device Sessions State
 const [deviceSessions, setDeviceSessions] = useState([
   { id: 'curr-1', type: 'desktop', device: 'Windows PC • Chrome Browser', location: 'Current Location (IP: 172.56.***.***)', status: 'Active Now', isCurrent: true, lastSeen: 'Just now' },
@@ -94,10 +94,12 @@ const handleRevokeDevice = (sessionId) => {
   // 2. The Inactivity Tracker (Resets timer on mouse/keyboard movement)
   useEffect(() => {
     const handleActivity = () => {
-      // Only auto-reset if they have more than 60 seconds left!
-      // If <= 60, let the modal stay open until they explicitly click the button.
-      setLogoutCountdown((prev) => (prev > 60 ? 900 : prev));
-    };
+    setLogoutCountdown((prev) => {
+      if (prev <= 60) return prev; // Keep the warning modal open!
+      if (prev > 890) return prev; // Prevent rapid re-renders if they just moved the mouse
+      return 900; 
+    });
+  };
 
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
