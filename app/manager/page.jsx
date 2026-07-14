@@ -7,7 +7,7 @@ import { supabase } from '../../utils/supabase';
 export default function ManagerDashboard() {
   const router = useRouter();
   const [managerId, setManagerId] = useState(null);
-  const [activeTab, setActiveTab] = useState('onboarding');
+  const [activeTab, setActiveTab] = useState('master-edit'); // Default to new tab
   
   // Global Target User
   const [identifier, setIdentifier] = useState('');
@@ -23,12 +23,13 @@ export default function ManagerDashboard() {
   const [creditData, setCreditData] = useState({ cardName: 'Quicksilver Rewards', creditLimit: 10000, balance: 0 });
   const [loanData, setLoanData] = useState({ loanName: '2024 Auto Loan', principal: 25000, monthlyPayment: 450, nextPaymentDate: '' });
 
+  // MASTER EDITOR STATES
+  const [masterData, setMasterData] = useState(null);
+
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
 
   const fetchManagerData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -37,26 +38,20 @@ export default function ManagerDashboard() {
       return; 
     }
 
-    // Check if their database profile has the admin badge
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('is_manager')
       .eq('id', user.id)
       .single();
 
-    // --- THE SILENT REJECTION ---
-    // If they aren't a manager, silently wipe this route and send them away
     if (error || !profile?.is_manager) {
-      router.replace('/dashboard'); // Silently drops them back at their client dashboard
+      router.replace('/dashboard'); 
       return;
     }
-    // ----------------------------
 
-    // Only unlock the UI if the check passes 100%
     setIsAuthorized(true);
     setManagerId(user.id);
     
-    // Fetch Operations Audit Trail
     const { data: logs } = await supabase
       .from('manager_audit_logs')
       .select('*')
@@ -68,6 +63,69 @@ export default function ManagerDashboard() {
   useEffect(() => { fetchManagerData(); }, [router]);
 
   // --- HANDLERS ---
+  
+  // NEW: Load Data for Master Editor
+  const handleLoadMasterData = async (e) => {
+    e.preventDefault();
+    if (!identifier) return setMessage('Error: Enter an email or UUID first.');
+    setLoading(true); setMessage('Loading user database records...');
+    try {
+      const response = await fetch(`${API_URL}/api/manager/user-details/${encodeURIComponent(identifier)}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      setMasterData({
+        profile: data.profile || {},
+        account: data.account || {}
+      });
+      setMessage('User records loaded successfully.');
+    } catch (error) {
+      setMessage(`Error: ${error.message}`);
+      setMasterData(null);
+    }
+    setLoading(false);
+  };
+
+  // NEW: Save Data from Master Editor
+  const handleSaveMasterData = async (e) => {
+    e.preventDefault();
+    if (!masterData) return;
+    setLoading(true); setMessage('Overwriting database records...');
+    try {
+      // Build the update payloads based on the form state
+      const payload = {
+        identifier,
+        managerId,
+        profileUpdates: {
+          legal_name: masterData.profile.legal_name,
+          phone: masterData.profile.phone,
+          ssn: masterData.profile.ssn,
+          address: masterData.profile.address,
+        },
+        accountUpdates: {
+          account_number: masterData.account.account_number,
+          balance: parseFloat(masterData.account.balance || 0),
+          savings_balance: parseFloat(masterData.account.savings_balance || 0),
+        }
+      };
+
+      const response = await fetch(`${API_URL}/api/manager/master-edit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      
+      if (data.error) throw new Error(data.error);
+      setMessage(`Success! ${data.message}`);
+      
+      // Refresh the audit logs
+      fetchManagerData();
+    } catch (error) {
+      setMessage(`Error: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setLoading(true); setMessage('Creating secure profile...');
@@ -148,10 +206,11 @@ export default function ManagerDashboard() {
     } catch (error) { setMessage('Failed to connect to the backend server.'); }
     setLoading(false);
   };
-// If they aren't verified yet, render an empty screen so nothing leaks/flashes
+
   if (!isAuthorized) {
     return null; 
   }
+
   return (
     <div className="min-h-screen bg-slate-900 p-4 md:p-8 font-sans text-slate-200">
       <div className="max-w-5xl mx-auto">
@@ -167,7 +226,7 @@ export default function ManagerDashboard() {
           </div>
           
           {/* GLOBAL TARGET USER INPUT */}
-          <div className="w-full md:w-auto bg-slate-800 p-3 rounded-lg border border-slate-600 flex items-center shadow-inner">
+          <div className="w-full md:w-auto bg-slate-800 p-3 rounded-lg border border-slate-600 flex items-center shadow-inner focus-within:border-emerald-500 transition-colors">
             <svg className="w-5 h-5 text-slate-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             <input 
               type="text" placeholder="Global Target (Email / UUID)" 
@@ -182,23 +241,102 @@ export default function ManagerDashboard() {
           <div className={`border-l-4 p-4 mb-6 rounded shadow-lg bg-slate-800 animate-in slide-in-from-top-4 ${message.includes('Error') ? 'border-rose-500 text-rose-400' : 'border-emerald-500 text-emerald-400'}`}>
             <div className="flex justify-between items-center">
               <p className="font-mono text-sm">{message}</p>
-              <button onClick={() => setMessage('')} className="text-slate-500 hover:text-white">✕</button>
+              <button onClick={() => setMessage('')} className="text-slate-500 hover:text-white focus:outline-none">✕</button>
             </div>
           </div>
         )}
 
         {/* TAB NAVIGATION */}
         <div className="flex overflow-x-auto space-x-2 mb-6 border-b border-slate-700 pb-2">
-          {['onboarding', 'ledger', 'products', 'security'].map((tab) => (
+          {['master-edit', 'onboarding', 'ledger', 'products', 'security'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider transition ${activeTab === tab ? 'bg-emerald-600/20 text-emerald-400 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+              className={`px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider transition whitespace-nowrap ${activeTab === tab ? 'bg-emerald-600/20 text-emerald-400 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
             >
               {tab.replace('-', ' ')}
             </button>
           ))}
         </div>
+
+        {/* TAB CONTENT: MASTER EDITOR (NEW) */}
+        {activeTab === 'master-edit' && (
+          <div className="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in">
+            <div className="flex justify-between items-center border-b border-slate-700 pb-4 mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Master Database Editor</h2>
+                <p className="text-sm text-slate-400 mt-1">Directly overwrite raw Supabase values for the targeted user.</p>
+              </div>
+              <button onClick={handleLoadMasterData} disabled={loading || !identifier} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded transition disabled:opacity-50 text-sm">
+                Load Profile
+              </button>
+            </div>
+
+            {!masterData ? (
+              <div className="p-12 text-center text-slate-500 border-2 border-dashed border-slate-700 rounded-lg">
+                Enter a target Email or UUID at the top right and click "Load Profile".
+              </div>
+            ) : (
+              <form onSubmit={handleSaveMasterData} className="space-y-8">
+                
+                {/* Profile Data Section */}
+                <div>
+                  <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    Profile Table
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Legal Name</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white focus:border-emerald-500" value={masterData.profile.legal_name || ''} onChange={(e) => setMasterData({...masterData, profile: {...masterData.profile, legal_name: e.target.value}})} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Phone</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-mono focus:border-emerald-500" value={masterData.profile.phone || ''} onChange={(e) => setMasterData({...masterData, profile: {...masterData.profile, phone: e.target.value}})} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">SSN (Social Security Number)</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-mono focus:border-emerald-500" value={masterData.profile.ssn || ''} onChange={(e) => setMasterData({...masterData, profile: {...masterData.profile, ssn: e.target.value}})} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Home Address</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white focus:border-emerald-500" value={masterData.profile.address || ''} onChange={(e) => setMasterData({...masterData, profile: {...masterData.profile, address: e.target.value}})} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Data Section */}
+                <div>
+                  <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Accounts Table
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Account Number</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-mono focus:border-emerald-500" value={masterData.account.account_number || ''} onChange={(e) => setMasterData({...masterData, account: {...masterData.account, account_number: e.target.value}})} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Checking Balance ($)</label>
+                      <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-mono focus:border-emerald-500" value={masterData.account.balance ?? ''} onChange={(e) => setMasterData({...masterData, account: {...masterData.account, balance: e.target.value}})} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Savings Balance ($)</label>
+                      <input type="number" step="0.01" className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-mono focus:border-emerald-500" value={masterData.account.savings_balance ?? ''} onChange={(e) => setMasterData({...masterData, account: {...masterData.account, savings_balance: e.target.value}})} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button type="submit" disabled={loading} className="w-full bg-rose-700 hover:bg-rose-600 text-white font-bold py-4 rounded shadow-lg transition disabled:opacity-50">
+                    {loading ? 'Processing...' : 'FORCE OVERWRITE DATABASE'}
+                  </button>
+                  <p className="text-center text-slate-500 text-[10px] mt-2">Warning: These changes bypass transaction ledgers and overwrite raw database values instantly.</p>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
         {/* TAB CONTENT: ONBOARDING */}
         {activeTab === 'onboarding' && (
