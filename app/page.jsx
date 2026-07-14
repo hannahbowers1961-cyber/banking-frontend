@@ -7,7 +7,50 @@ import { supabase } from '../utils/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false); // Toggles the UI to the PIN screen
+  const sendEmailCode = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        // This forces Supabase to NOT append the hash to the URL, 
+        // ensuring it acts purely as a 6-digit OTP flow.
+        shouldCreateUser: false, 
+      }
+    });
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+    } else {
+      setCodeSent(true); // Switch the screen to ask for the PIN
+    }
+    setLoading(false);
+  };
+  const [pinCode, setPinCode] = useState('');
+
+  const verifyEmailCode = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { data: { session }, error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: pinCode,
+      type: 'email',
+    });
+
+    if (error) {
+      alert(`Verification failed: ${error.message}`);
+    } else if (session) {
+      // Success! The user is now fully authenticated.
+      // Next.js will naturally redirect them or you can force it here:
+      // router.push('/dashboard');
+    }
+    setLoading(false);
+  };
   // Credentials State
   const [username, setUsername] = useState(''); 
   const [password, setPassword] = useState('');
