@@ -12,6 +12,22 @@ export default function SignupPage() {
   const [dob, setDob] = useState('');
   const [showError, setShowError] = useState(false);
 
+  // Automatically calculate the date 18 years ago from today for age validation
+  const maxDate = new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0];
+
+  // Helper: Format SSN as XXX-XX-XXXX while typing
+  const handleSsnChange = (e) => {
+    const numbers = e.target.value.replace(/\D/g, ''); // Strip non-digits
+    let formatted = numbers;
+    if (numbers.length > 3 && numbers.length <= 5) {
+      formatted = `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else if (numbers.length > 5) {
+      formatted = `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 9)}`;
+    }
+    setSsn(formatted);
+    setShowError(false);
+  };
+
   const handleFindMe = (e) => {
     e.preventDefault();
     if (lastName && ssn && dob) { setShowError(true); }
@@ -83,22 +99,34 @@ export default function SignupPage() {
                   className="w-full border border-gray-400 rounded px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900" required
                 />
               </div>
+
+              {/* UPGRADED SSN INPUT */}
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-1">Social Security Number</label>
                 <input 
-                  type="text" placeholder="000000000" maxLength={9} value={ssn}
-                  onChange={(e) => { setSsn(e.target.value.replace(/\D/g, '')); setShowError(false); }}
-                  className="w-full border border-gray-400 rounded px-3 py-2.5 font-mono text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900" required
+                  type="text" 
+                  placeholder="000-00-0000" 
+                  maxLength={11} 
+                  value={ssn}
+                  onChange={handleSsnChange}
+                  className="w-full border border-gray-400 rounded px-3 py-2.5 font-mono text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900" 
+                  required
                 />
               </div>
+
+              {/* UPGRADED CALENDAR DATE PICKER */}
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-1">Date of Birth</label>
                 <input 
-                  type="text" placeholder="mm / dd / yyyy" value={dob}
+                  type="date" 
+                  max={maxDate}
+                  value={dob}
                   onChange={(e) => { setDob(e.target.value); setShowError(false); }}
-                  className="w-full border border-gray-400 rounded px-3 py-2.5 font-mono text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900" required
+                  className="w-full border border-gray-400 rounded px-3 py-2.5 font-mono text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900 cursor-pointer" 
+                  required
                 />
               </div>
+
               <div className="pt-2">
                 <button type="submit" className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors shadow-sm focus:outline-none">
                   Find Me
