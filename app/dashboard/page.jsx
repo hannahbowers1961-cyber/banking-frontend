@@ -50,37 +50,43 @@ export default function ClientDashboard() {
   const [loanAccounts, setLoanAccounts] = useState([]);
   const [upcomingTxs, setUpcomingTxs] = useState([]);
   
-  // MOVE IT HERE: Declare the state before using it!
   const [rewardsBalance, setRewardsBalance] = useState(0); 
 
   // Profile, Security & Limits States
-const [userEmail, setUserEmail] = useState('');
-const [phone, setPhone] = useState('');
-const [ssn, setSsn] = useState('9842'); // Last 4 digits
-const [profilePhoto, setProfilePhoto] = useState(null);
-const [accountTier, setAccountTier] = useState('360 Premier Gold');
-const [dailyLimit, setDailyLimit] = useState(5000);
-const [logoutCountdown, setLogoutCountdown] = useState(900); // 15 mins
-// Active & Historical Device Sessions State
-const [deviceSessions, setDeviceSessions] = useState([
-  { id: 'curr-1', type: 'desktop', device: 'Windows PC • Chrome Browser', location: 'Current Location (IP: 172.56.***.***)', status: 'Active Now', isCurrent: true, lastSeen: 'Just now' },
-  { id: 'old-2', type: 'mobile', device: 'iPhone 14 Pro • Safari Mobile', location: 'Known Location (IP: 172.56.***.***)', status: 'Signed in 2 days ago', isCurrent: false, lastSeen: '2 days ago' },
-  { id: 'old-3', type: 'desktop', device: 'MacBook Air • Apple Safari', location: 'Known Location (IP: 24.180.***.***)', status: 'Signed in 5 days ago', isCurrent: false, lastSeen: '5 days ago' }
-]);
+  const [userEmail, setUserEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [ssn, setSsn] = useState('9842'); // Last 4 digits
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [accountTier, setAccountTier] = useState('360 Premier Gold');
+  const [dailyLimit, setDailyLimit] = useState(5000);
+  const [logoutCountdown, setLogoutCountdown] = useState(900); // 15 mins
+  // Active & Historical Device Sessions State
+  const [deviceSessions, setDeviceSessions] = useState([
+    { id: 'curr-1', type: 'desktop', device: 'Windows PC • Chrome Browser', location: 'Current Location (IP: 172.56.***.***)', status: 'Active Now', isCurrent: true, lastSeen: 'Just now' },
+    { id: 'old-2', type: 'mobile', device: 'iPhone 14 Pro • Safari Mobile', location: 'Known Location (IP: 172.56.***.***)', status: 'Signed in 2 days ago', isCurrent: false, lastSeen: '2 days ago' },
+    { id: 'old-3', type: 'desktop', device: 'MacBook Air • Apple Safari', location: 'Known Location (IP: 24.180.***.***)', status: 'Signed in 5 days ago', isCurrent: false, lastSeen: '5 days ago' }
+  ]);
 
-// Handler to revoke individual or all older devices
-const handleRevokeDevice = (sessionId) => {
-  if (sessionId === 'all-others') {
-    supabase.auth.signOut({ scope: 'others' });
-    setDeviceSessions(prev => prev.filter(s => s.isCurrent));
-    alert("Success! All other active device sessions have been terminated.");
-  } else {
-    setDeviceSessions(prev => prev.filter(s => s.id !== sessionId));
-  }
-};
+  // Helper: Format balances into dollars and superscript cents
+  const formatBalanceParts = (amount) => {
+    const num = Number(amount || 0);
+    const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const parts = formatted.split('.');
+    return { dollars: parts[0], cents: parts[1] };
+  };
 
-// Auto-Logout Clock Engine
-// 1. The Countdown Clock (Ticks down every second)
+  // Handler to revoke individual or all older devices
+  const handleRevokeDevice = (sessionId) => {
+    if (sessionId === 'all-others') {
+      supabase.auth.signOut({ scope: 'others' });
+      setDeviceSessions(prev => prev.filter(s => s.isCurrent));
+      alert("Success! All other active device sessions have been terminated.");
+    } else {
+      setDeviceSessions(prev => prev.filter(s => s.id !== sessionId));
+    }
+  };
+
+  // Auto-Logout Clock Engine
   useEffect(() => {
     if (logoutCountdown <= 0) {
       supabase.auth.signOut();
@@ -91,15 +97,14 @@ const handleRevokeDevice = (sessionId) => {
     return () => clearInterval(timer);
   }, [logoutCountdown, router]);
 
-  // 2. The Inactivity Tracker (Resets timer on mouse/keyboard movement)
   useEffect(() => {
     const handleActivity = () => {
-    setLogoutCountdown((prev) => {
-      if (prev <= 60) return prev; // Keep the warning modal open!
-      if (prev > 890) return prev; // Prevent rapid re-renders if they just moved the mouse
-      return 900; 
-    });
-  };
+      setLogoutCountdown((prev) => {
+        if (prev <= 60) return prev; // Keep the warning modal open!
+        if (prev > 890) return prev; // Prevent rapid re-renders
+        return 900; 
+      });
+    };
 
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
@@ -112,12 +117,13 @@ const handleRevokeDevice = (sessionId) => {
     };
   }, []);
 
-const formatCountdown = (seconds) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-};
-// --- SYNC PROFILE PHOTO TO SERVER ---
+  const formatCountdown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // --- SYNC PROFILE PHOTO TO SERVER ---
   const handlePhotoUpload = async (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -179,7 +185,7 @@ const formatCountdown = (seconds) => {
     if (profile) {
       setAccountStatus(profile.account_status);
       if (profile.legal_name) setLegalName(profile.legal_name);
-      if (profile.profile_photo) setProfilePhoto(profile.profile_photo); // <-- Pulls saved photo from DB!
+      if (profile.profile_photo) setProfilePhoto(profile.profile_photo);
     }
 
     const { data: account } = await supabase.from('accounts').select('account_id, account_number, balance, savings_balance, rewards_balance').eq('user_id', user.id).single();
@@ -348,6 +354,7 @@ const formatCountdown = (seconds) => {
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const formatTime = (dateString) => new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+  // --- Transaction List Render (Formatted with Commas) ---
   const renderTransactionList = (limit = null) => {
     if (transactions.length === 0) return <div className="p-8 text-center text-gray-400 font-bold">No recent transactions.</div>;
     const displayTxs = limit ? transactions.slice(0, limit) : transactions;
@@ -356,7 +363,9 @@ const formatCountdown = (seconds) => {
       const rawAmount = Number(tx.amount);
       const isActuallyWithdrawal = tx.sender_account_id === accountId;
       const isTransfer = tx.type === 'transfer';
-      const absAmount = Math.abs(rawAmount).toFixed(2);
+      
+      // Formatted with commas
+      const absAmount = Math.abs(rawAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       
       let txPrefix = '+'; let txColor = 'bg-emerald-500'; let textColor = 'text-emerald-600'; let iconChar = '+';
       if (isActuallyWithdrawal) { txPrefix = '-'; txColor = 'bg-[#dd0031]'; textColor = 'text-[#dd0031]'; iconChar = '-'; } 
@@ -385,7 +394,7 @@ const formatCountdown = (seconds) => {
             </div>
           </div>
           <div className="text-right shrink-0 ml-2">
-            <div className={`font-semibold text-base ${textColor}`}>{txPrefix}{absAmount}</div>
+            <div className={`font-semibold text-base ${textColor}`}>{txPrefix}${absAmount}</div>
             <div className="text-xs text-gray-500">{formatDate(tx.created_at)}</div>
           </div>
         </div>
@@ -418,18 +427,17 @@ const formatCountdown = (seconds) => {
               >
                 Sign Out
               </button>
-              {/* CLICKABLE PROFILE AVATAR */}
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className="w-10 h-10 shrink-0 rounded-full bg-[#004879] text-white flex items-center justify-center font-bold text-sm uppercase shadow-md hover:ring-2 hover:ring-[#0071ce] hover:scale-105 transition-all overflow-hidden relative focus:outline-none"
-            title="Manage Profile & Security"
-          >
-            {profilePhoto ? (
-              <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span>{legalName.substring(0, 2)}</span>
-            )}
-          </button>
+              <button 
+                onClick={() => setActiveTab('profile')}
+                className="w-10 h-10 shrink-0 rounded-full bg-[#004879] text-white flex items-center justify-center font-bold text-sm uppercase shadow-md hover:ring-2 hover:ring-[#0071ce] hover:scale-105 transition-all overflow-hidden relative focus:outline-none"
+                title="Manage Profile & Security"
+              >
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{legalName.substring(0, 2)}</span>
+                )}
+              </button>
             </div>
           </div>
           
@@ -445,7 +453,6 @@ const formatCountdown = (seconds) => {
                   </div>
                 ))}
 
-                {/* --- NEW: MOBILE SIGN OUT BUTTON --- */}
                 <div className="border-t border-[#003456] mt-2 pt-2">
                   <div 
                     onClick={() => { supabase.auth.signOut(); router.push('/'); }}
@@ -455,8 +462,6 @@ const formatCountdown = (seconds) => {
                     <span className="text-sm font-bold">Sign Out</span>
                   </div>
                 </div>
-                {/* ----------------------------------- */}
-
               </nav>
             </div>
           )}
@@ -495,26 +500,56 @@ const formatCountdown = (seconds) => {
 
           <main className="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 bg-[#00426b]">
             
-            {/* DYNAMIC LEFT COLUMN: Expands to full width (12 cols) unless on checking/savings! */}
             <div className={`${['checking', 'savings'].includes(activeTab) ? 'lg:col-span-7' : 'lg:col-span-12'} flex flex-col space-y-4 md:space-y-6 transition-all duration-300`}>
               
+              {/* --- STYLED CAPITAL ONE BALANCES (CHECKING TAB) --- */}
               {activeTab === 'checking' && (
                 <>
-                  <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300">
-                    <h2 className="text-xl font-bold text-gray-800 mb-1 line-clamp-1">360 Checking (...{accountNumber})</h2>
-                    <div className="text-3xl md:text-[40px] font-bold text-[#004879] leading-none mb-6 tracking-tight truncate">
-                      ${Number(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <div className="border-t border-gray-100 pt-5 mb-6">
-                      <h2 className="text-xl font-bold text-gray-800 mb-1 line-clamp-1">360 Savings (...{savingsAccountNumber})</h2>
-                      <div className="text-xl md:text-2xl font-bold text-[#004879] leading-none tracking-tight truncate">
-                        ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    
+                    {/* 360 Checking Card */}
+                    <div className="bg-[#186585] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
+                      <div className="flex items-baseline">
+                        <span className="text-lg md:text-xl font-semibold tracking-wide">360 Checking</span>
+                        <span className="text-white/80 text-sm md:text-base font-normal ml-2">...{accountNumber}</span>
                       </div>
+                      <div className="flex items-start my-3 font-light">
+                        <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
+                        <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
+                          {formatBalanceParts(checkingBalance).dollars}
+                        </span>
+                        <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
+                          {formatBalanceParts(checkingBalance).cents}
+                        </span>
+                      </div>
+                      <div className="text-sm md:text-base text-white/90 font-normal">Available Balance</div>
                     </div>
-                    <button onClick={() => handleSecureAction('transfer')} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-sm transition shadow-sm focus:outline-none">
+
+                    {/* 360 Savings Card */}
+                    <div className="bg-[#0c2b4e] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
+                      <div className="flex items-baseline">
+                        <span className="text-lg md:text-xl font-semibold tracking-wide">360 Savings</span>
+                        <span className="text-white/80 text-sm md:text-base font-normal ml-2">...{savingsAccountNumber}</span>
+                      </div>
+                      <div className="flex items-start my-3 font-light">
+                        <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
+                        <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
+                          {formatBalanceParts(savingsBalance).dollars}
+                        </span>
+                        <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
+                          {formatBalanceParts(savingsBalance).cents}
+                        </span>
+                      </div>
+                      <div className="text-sm md:text-base text-white/90 font-normal">Available Balance</div>
+                    </div>
+
+                    {/* Transfer Button */}
+                    <button onClick={() => handleSecureAction('transfer')} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3.5 rounded-xl text-sm transition shadow-sm focus:outline-none">
                       Transfer Funds
                     </button>
                   </div>
+
+                  {/* Recent Activity Table */}
                   <div className="bg-white rounded-xl shadow flex-1 flex flex-col min-h-[300px] animate-in fade-in duration-300">
                     <div className="p-5 md:p-6 pb-2 border-b border-gray-50 flex justify-between items-center">
                       <h3 className="text-lg font-bold text-gray-800">Recent Activity</h3>
@@ -527,89 +562,116 @@ const formatCountdown = (seconds) => {
                 </>
               )}
 
+              {/* --- STYLED CAPITAL ONE BALANCES (SAVINGS TAB) --- */}
               {activeTab === 'savings' && (
-                <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 truncate">360 Performance Savings</h2>
-                  <p className="text-gray-500 text-xs sm:text-sm mb-6 truncate">Account ending in ...{savingsAccountNumber}</p>
-                  <div className="bg-[#e8eef3] rounded-lg p-4 sm:p-6 mb-8 flex justify-between items-center border border-blue-100 min-w-0">
-                    <div className="w-full min-w-0">
-                      <div className="text-xs sm:text-sm text-gray-600 font-bold uppercase tracking-wider mb-1 truncate">Available Balance</div>
-                      <div className="text-2xl sm:text-3xl md:text-[48px] font-bold text-[#004879] leading-none tracking-tight truncate">
-                        ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
+                <div className="space-y-4 animate-in fade-in duration-300 min-h-[500px]">
+                  <div className="bg-[#0c2b4e] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
+                    <div className="flex items-baseline">
+                      <span className="text-lg md:text-xl font-semibold tracking-wide">360 Performance Savings</span>
+                      <span className="text-white/80 text-sm md:text-base font-normal ml-2">...{savingsAccountNumber}</span>
                     </div>
+                    <div className="flex items-start my-3 font-light">
+                      <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
+                      <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
+                        {formatBalanceParts(savingsBalance).dollars}
+                      </span>
+                      <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
+                        {formatBalanceParts(savingsBalance).cents}
+                      </span>
+                    </div>
+                    <div className="text-sm md:text-base text-white/90 font-normal">Available Balance</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-8">
-                    <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Add Money</button>
-                    <button onClick={() => handleSecureAction('transfer')} className="bg-blue-50 text-[#0071ce] hover:bg-blue-100 font-bold py-3 rounded transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Transfer Out</button>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3.5 rounded-xl transition shadow-sm focus:outline-none text-sm sm:text-base truncate">Add Money</button>
+                    <button onClick={() => handleSecureAction('transfer')} className="bg-white text-[#0071ce] hover:bg-blue-50 font-bold py-3.5 rounded-xl transition shadow-sm focus:outline-none text-sm sm:text-base truncate border border-gray-200">Transfer Out</button>
                   </div>
                 </div>
               )}
 
+              {/* --- STYLED CAPITAL ONE BALANCES (CREDIT TAB) --- */}
               {activeTab === 'credit' && (
-                <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
-                  {creditAccounts.length > 0 ? creditAccounts.map(credit => (
-                    <div key={credit.id} className="mb-10 border-b pb-6 last:border-b-0">
-                      <div className="flex items-start justify-between mb-6 sm:mb-8">
-                        <div className="min-w-0 pr-4">
-                          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{credit.card_name}</h2>
-                          <p className="text-gray-500 text-xs sm:text-sm">Card ending in ...{credit.card_number.slice(-4)}</p>
+                <div className="space-y-6 animate-in fade-in duration-300 min-h-[500px]">
+                  {creditAccounts.length > 0 ? creditAccounts.map(credit => {
+                    const balanceParts = formatBalanceParts(credit.balance);
+                    const availCredit = (parseFloat(credit.credit_limit) - parseFloat(credit.balance)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return (
+                      <div key={credit.id} className="space-y-3">
+                        <div className="bg-[#0c2b4e] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
+                          <div className="flex items-baseline justify-between">
+                            <div className="flex items-baseline">
+                              <span className="font-serif tracking-[0.2em] font-medium text-lg md:text-xl uppercase">{credit.card_name}</span>
+                              <span className="text-white/80 font-sans tracking-normal font-normal text-sm md:text-base ml-2">...{credit.card_number.slice(-4)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-start my-3 font-light">
+                            <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
+                            <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
+                              {balanceParts.dollars}
+                            </span>
+                            <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
+                              {balanceParts.cents}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-end">
+                            <span className="text-sm md:text-base text-white/90 font-normal">Current Balance</span>
+                            <span className="text-xs text-white/70 font-sans">Available Credit: ${availCredit}</span>
+                          </div>
                         </div>
+                        <button onClick={() => handlePayDebtModal('credit', credit)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3.5 rounded-xl transition shadow-sm focus:outline-none text-sm">
+                          Make a Payment
+                        </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-8 mb-8">
-                        <div className="min-w-0">
-                          <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1 truncate">Current Balance</div>
-                          <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 tracking-tight truncate">${parseFloat(credit.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1 truncate">Available Credit</div>
-                          <div className="text-xl sm:text-2xl md:text-3xl font-bold text-emerald-600 tracking-tight truncate">${(parseFloat(credit.credit_limit) - parseFloat(credit.balance)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        </div>
-                      </div>
-                      <button onClick={() => handlePayDebtModal('credit', credit)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded mb-8 transition shadow-sm focus:outline-none">
-                        Make a Payment
-                      </button>
-                    </div>
-                  )) : (
-                     <div className="text-center py-20 text-gray-400 font-bold">No Credit Accounts Found.</div>
+                    );
+                  }) : (
+                     <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400 font-bold">No Credit Accounts Found.</div>
                   )}
                 </div>
               )}
 
+              {/* --- STYLED CAPITAL ONE BALANCES (LOANS TAB) --- */}
               {activeTab === 'loans' && (
-                <div className="bg-white rounded-xl shadow p-5 md:p-6 relative animate-in fade-in duration-300 min-h-[500px]">
+                <div className="space-y-6 animate-in fade-in duration-300 min-h-[500px]">
                   {loanAccounts.length > 0 ? loanAccounts.map(loan => {
+                    const balanceParts = formatBalanceParts(loan.current_balance);
                     const paidPct = ((loan.original_principal - loan.current_balance) / loan.original_principal) * 100;
                     return (
-                      <div key={loan.id} className="mb-10 border-b pb-6 last:border-b-0">
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 truncate">{loan.loan_name}</h2>
-                        <p className="text-gray-500 text-sm mb-6 sm:mb-8">Account ending in ...{loan.account_number.slice(-4)}</p>
-                        <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mb-8 shadow-sm">
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-4">
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs sm:text-sm text-gray-600 font-bold uppercase mb-1 truncate">Remaining Principal</div>
-                              <div className="text-3xl md:text-[40px] font-bold text-gray-800 leading-none tracking-tight truncate">${parseFloat(loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div key={loan.id} className="space-y-3">
+                        <div className="bg-[#186585] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
+                          <div className="flex items-baseline justify-between">
+                            <div className="flex items-baseline">
+                              <span className="text-lg md:text-xl font-semibold tracking-wide">{loan.loan_name}</span>
+                              <span className="text-white/80 font-normal text-sm md:text-base ml-2">...{loan.account_number.slice(-4)}</span>
                             </div>
-                            <div className="sm:text-right shrink-0 mt-2 sm:mt-0">
-                              <div className="text-base sm:text-lg font-bold text-[#dd0031] tracking-tight">${parseFloat(loan.monthly_payment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                              <div className="text-[10px] sm:text-xs text-gray-500 font-bold truncate">Due {formatDate(loan.next_payment_date)}</div>
-                            </div>
+                            <span className="text-xs font-bold bg-white/10 px-2.5 py-1 rounded-full">Due {formatDate(loan.next_payment_date)}</span>
                           </div>
-                          <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-2 shadow-inner">
-                            <div className="bg-emerald-500 h-full" style={{ width: `${paidPct}%` }}></div>
+                          <div className="flex items-start my-3 font-light">
+                            <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
+                            <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
+                              {balanceParts.dollars}
+                            </span>
+                            <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
+                              {balanceParts.cents}
+                            </span>
                           </div>
-                          <div className="flex justify-between text-[10px] sm:text-xs font-bold text-gray-500">
-                            <span className="truncate pr-2">${(loan.original_principal - loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Paid</span>
-                            <span className="truncate pl-2">${parseFloat(loan.original_principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Loan</span>
+                          <div className="flex justify-between items-end mb-4">
+                            <span className="text-sm md:text-base text-white/90 font-normal">Remaining Principal</span>
+                            <span className="text-xs sm:text-sm font-bold text-[#ffc72c]">${parseFloat(loan.monthly_payment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / mo</span>
+                          </div>
+                          <div className="w-full bg-black/20 h-2 rounded-full overflow-hidden">
+                            <div className="bg-[#00e396] h-full" style={{ width: `${paidPct}%` }}></div>
+                          </div>
+                          <div className="flex justify-between text-[11px] text-white/70 mt-1.5 font-sans">
+                            <span>${(loan.original_principal - loan.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Paid</span>
+                            <span>${parseFloat(loan.original_principal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total</span>
                           </div>
                         </div>
-                        <button onClick={() => handlePayDebtModal('loan', loan)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded transition shadow-sm focus:outline-none">
+                        <button onClick={() => handlePayDebtModal('loan', loan)} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3.5 rounded-xl transition shadow-sm focus:outline-none text-sm">
                           Pay Auto Loan
                         </button>
                       </div>
-                    )
+                    );
                   }) : (
-                     <div className="text-center py-20 text-gray-400 font-bold">No Active Loans.</div>
+                     <div className="bg-white rounded-xl shadow p-12 text-center text-gray-400 font-bold">No Active Loans.</div>
                   )}
                 </div>
               )}
@@ -660,7 +722,6 @@ const formatCountdown = (seconds) => {
                 </div>
               )}
 
-              {/* PROFILE & SECURITY MANAGEMENT TAB */}
               {activeTab === 'profile' && (
                 <div className="bg-white rounded-xl shadow p-5 md:p-8 relative animate-in fade-in duration-300 min-h-[600px] space-y-8">
                   <div className="border-b border-gray-100 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -673,7 +734,6 @@ const formatCountdown = (seconds) => {
                     </span>
                   </div>
 
-                  {/* GRID: PII & PHOTO UPLOAD */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-b border-gray-100 pb-8">
                     <div className="lg:col-span-7 space-y-5">
                       <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Personal Identification (Masked)</h3>
@@ -706,7 +766,6 @@ const formatCountdown = (seconds) => {
                       </div>
                     </div>
 
-                    {/* Photo Uploader */}
                     <div className="lg:col-span-5 flex flex-col items-center justify-center bg-gray-50/80 p-6 rounded-xl border-2 border-dashed border-gray-300">
                       <div className="w-24 h-24 rounded-full bg-[#004879] text-white flex items-center justify-center font-bold text-2xl uppercase mb-4 shadow-inner overflow-hidden relative">
                         {profilePhoto ? (
@@ -718,7 +777,6 @@ const formatCountdown = (seconds) => {
                       <h4 className="font-bold text-sm text-gray-800 mb-1">Avatar Photo</h4>
                       <p className="text-xs text-gray-500 text-center mb-4 leading-relaxed">Upload a clear photo to personalize your top-right initials circle.</p>
                       
-                      {/* FIX: Cleaned up single label without nesting */}
                       <label className="cursor-pointer bg-white hover:bg-gray-100 text-[#0071ce] border border-[#0071ce] font-bold px-4 py-2 rounded-lg text-xs transition shadow-sm inline-block">
                         <span>Choose File...</span>
                         <input 
@@ -729,7 +787,6 @@ const formatCountdown = (seconds) => {
                         />
                       </label>
                       
-                      {/* FIX: Moved outside the label! */}
                       {profilePhoto && (
                         <button 
                           onClick={handleRemovePhoto} 
@@ -741,7 +798,6 @@ const formatCountdown = (seconds) => {
                     </div>
                   </div>
 
-                  {/* GRID: ACCOUNT LIMITS & TIER SLIDER */}
                   <div className="border-b border-gray-100 pb-8">
                     <div className="flex justify-between items-center mb-4">
                       <div>
@@ -766,7 +822,6 @@ const formatCountdown = (seconds) => {
                     </div>
                   </div>
 
-                  {/* GRID: SESSION SECURITY & DEVICE MANAGEMENT */}
                   <div>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                       <div>
@@ -858,7 +913,7 @@ const formatCountdown = (seconds) => {
                   <div className="p-5 md:p-6 pb-4 border-b border-gray-50"><h3 className="text-lg font-bold text-gray-800">Upcoming Transactions</h3></div>
                   {upcomingTxs.length === 0 && <div className="p-6 text-center text-gray-400 font-bold text-sm">No scheduled payments.</div>}
                   {upcomingTxs.map((tx) => (
-                    <div key={tx.id} onClick={() => { setSelectedTx({ id: tx.id, txPrefix: '-', txColor: tx.color || 'bg-slate-500', textColor: 'text-gray-800', absAmount: Math.abs(Number(tx.amount)).toFixed(2), description: tx.name, type: 'Scheduled Payment', account: `360 Checking (...${accountNumber})`, formattedDate: tx.date || formatDate(tx.next_date), status: 'Pending' }); setActiveModal('tx_details'); }} className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group">
+                    <div key={tx.id} onClick={() => { setSelectedTx({ id: tx.id, txPrefix: '-', txColor: tx.color || 'bg-slate-500', textColor: 'text-gray-800', absAmount: Math.abs(Number(tx.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), description: tx.name, type: 'Scheduled Payment', account: `360 Checking (...${accountNumber})`, formattedDate: tx.date || formatDate(tx.next_date), status: 'Pending' }); setActiveModal('tx_details'); }} className="flex justify-between items-center px-4 md:px-6 py-4 border-b last:border-b-0 border-gray-50 hover:bg-gray-50 transition cursor-pointer group">
                       <div className="flex items-center space-x-3 min-w-0 pr-2">
                         <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-105 transition-transform ${tx.color || 'bg-slate-500'}`}>{tx.initial || tx.name[0]}</div>
                         <div className="min-w-0">
@@ -867,7 +922,7 @@ const formatCountdown = (seconds) => {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toFixed(2)}</div>
+                        <div className="font-semibold text-sm text-gray-800">-${Math.abs(Number(tx.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                         <div className="text-[11px] text-gray-500 truncate">{tx.date || formatDate(tx.next_date)}</div>
                       </div>
                     </div>
@@ -881,11 +936,11 @@ const formatCountdown = (seconds) => {
                   </div>
                   <div className="space-y-6">
                     <div>
-                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Inflow</span> <span className="font-bold text-emerald-600 shrink-0">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Inflow</span> <span className="font-bold text-emerald-600 shrink-0">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
                       <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner"><div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalInflow === 0 ? 0 : (totalInflow / (totalInflow+totalOutflow)) * 100}%` }}></div></div>
                     </div>
                     <div>
-                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Outflow</span> <span className="font-bold text-[#dd0031] shrink-0">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                      <div className="flex text-sm mb-2 justify-between gap-2"><span className="font-bold text-gray-800 truncate">Total Outflow</span> <span className="font-bold text-[#dd0031] shrink-0">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
                       <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden shadow-inner"><div className="bg-[#dd0031] h-full rounded-full" style={{ width: `${totalOutflow === 0 ? 0 : (totalOutflow / (totalInflow+totalOutflow)) * 100}%` }}></div></div>
                     </div>
                   </div>
@@ -917,11 +972,9 @@ const formatCountdown = (seconds) => {
         </div>
       </div>
 
-      {/* --------------------------------------------------------------------------------
-          MODALS ENGINE
-          -------------------------------------------------------------------------------- */}
+      {/* --- MODALS ENGINE --- */}
 
-      {/* PAY DEBT MODAL (NEW) */}
+      {/* PAY DEBT MODAL */}
       {activeModal === 'pay_debt' && targetDebt && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200 border-t-8 border-[#0071ce]">
@@ -934,14 +987,14 @@ const formatCountdown = (seconds) => {
               <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-100 min-w-0">
                 <div className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1 truncate">Paying Towards</div>
                 <div className="font-bold text-gray-800 truncate">{targetDebt.name}</div>
-                <div className="text-sm text-gray-600 mt-1 truncate">Current Balance: <span className="font-bold text-[#dd0031]">${parseFloat(targetDebt.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                <div className="text-sm text-gray-600 mt-1 truncate">Current Balance: <span className="font-bold text-[#dd0031]">${parseFloat(targetDebt.balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
               </div>
 
               {errorMsg && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 font-bold text-sm border border-red-200">{errorMsg}</div>}
 
               <label className="block text-sm font-bold text-gray-700 mb-2 truncate">Pay From</label>
               <select className="w-full border border-gray-300 rounded px-3 py-3 mb-6 text-gray-900 bg-white truncate" required>
-                <option value="checking">360 Checking (...{accountNumber}) - ${parseFloat(checkingBalance).toFixed(2)}</option>
+                <option value="checking">360 Checking (...{accountNumber}) - ${parseFloat(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</option>
               </select>
 
               <label className="block text-sm font-bold text-gray-700 mb-2 truncate">Payment Amount</label>
@@ -992,7 +1045,7 @@ const formatCountdown = (seconds) => {
                 {selectedTx.txPrefix === '+' ? '+' : '-'}
               </div>
               <div className={`text-3xl sm:text-4xl font-black ${selectedTx.textColor} tracking-tight truncate w-full`}>
-                {selectedTx.txPrefix}{selectedTx.absAmount}
+                {selectedTx.txPrefix}${selectedTx.absAmount}
               </div>
               <div className="text-gray-500 font-medium capitalize mt-1 truncate">{selectedTx.status}</div>
             </div>
@@ -1030,12 +1083,12 @@ const formatCountdown = (seconds) => {
               <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-6 rounded-xl text-center min-w-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 text-lg sm:text-xl">↓</div>
                 <div className="text-[10px] sm:text-sm font-bold text-emerald-700 uppercase tracking-wider truncate">Money In</div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-black text-emerald-600 mt-1 tracking-tight truncate">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-black text-emerald-600 mt-1 tracking-tight truncate">+${totalInflow.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
               </div>
               <div className="bg-red-50 border border-red-100 p-4 sm:p-6 rounded-xl text-center min-w-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-200 text-red-700 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 text-lg sm:text-xl">↑</div>
                 <div className="text-[10px] sm:text-sm font-bold text-red-700 uppercase tracking-wider truncate">Money Out</div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-black text-[#dd0031] mt-1 tracking-tight truncate">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-black text-[#dd0031] mt-1 tracking-tight truncate">-${totalOutflow.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
               </div>
             </div>
 
@@ -1047,7 +1100,7 @@ const formatCountdown = (seconds) => {
                  const pct = totalOutflow > 0 ? (amount / totalOutflow) * 100 : 0;
                  return (
                   <div key={cat} className="mb-3">
-                    <div className="flex justify-between text-xs sm:text-sm mb-1 gap-2"><span className="font-bold text-gray-700 truncate">{cat}</span><span className="font-bold text-gray-800 shrink-0">${amount.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs sm:text-sm mb-1 gap-2"><span className="font-bold text-gray-700 truncate">{cat}</span><span className="font-bold text-gray-800 shrink-0">${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                     <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-[#0071ce] h-full rounded-full" style={{ width: `${pct}%` }}></div></div>
                   </div>
                  )
@@ -1204,7 +1257,7 @@ const formatCountdown = (seconds) => {
         </div>
       )}
 
-      {/* STATEMENT / PDF MODAL (RESTORED) */}
+      {/* STATEMENT / PDF MODAL */}
       {activeModal === 'statement' && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm print:bg-white print:p-0 print:block">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto print:shadow-none print:max-h-none print:w-full print:p-8 animate-in slide-in-from-bottom-8">
@@ -1246,7 +1299,7 @@ const formatCountdown = (seconds) => {
                       <td className="py-3 text-xs sm:text-sm text-gray-600 font-mono whitespace-nowrap pr-2">{formatDate(tx.created_at)}</td>
                       <td className="py-3 text-xs sm:text-sm font-bold text-gray-800 capitalize line-clamp-1">{tx.description || tx.type} <span className="text-[10px] sm:text-xs font-normal text-gray-400 block truncate">{tx.status}</span></td>
                       <td className="py-3 text-xs sm:text-sm font-bold text-right font-mono text-gray-800 whitespace-nowrap pl-2">
-                        {tx.sender_account_id === accountId ? '-' : '+'}${Math.abs(Number(tx.amount)).toFixed(2)}
+                        {tx.sender_account_id === accountId ? '-' : '+'}${Math.abs(Number(tx.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
