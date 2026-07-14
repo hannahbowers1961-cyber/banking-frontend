@@ -8,6 +8,7 @@ export default function ManagerDashboard() {
   const router = useRouter();
   const [managerId, setManagerId] = useState(null);
   const [activeTab, setActiveTab] = useState('master-edit'); // Default to new tab
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://banking-backend-rg44.onrender.com';
   
   // Global Target User
   const [identifier, setIdentifier] = useState('');
@@ -25,11 +26,17 @@ export default function ManagerDashboard() {
 
   // MASTER EDITOR STATES
   const [masterData, setMasterData] = useState(null);
+  // TRANSACTION EDITOR STATES
+  const [userTxs, setUserTxs] = useState([]);
+  const [txModal, setTxModal] = useState({ isOpen: false, tx: null });
+  const [txUpdates, setTxUpdates] = useState({ amount: '', description: '', created_at: '', status: '' });
 
   const [message, setMessage] = useState('');
+  const [notification, setNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
   const [loading, setLoading] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
+
 
   const fetchManagerData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -122,6 +129,71 @@ export default function ManagerDashboard() {
       fetchManagerData();
     } catch (error) {
       setMessage(`Error: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleLoadTxs = async (e) => {
+    e.preventDefault();
+    if (!identifier) return setMessage('Error: Enter an email or UUID first.');
+    setLoading(true); setMessage('Loading transaction ledger...');
+    try {
+      const response = await fetch(`${API_URL}/api/manager/transactions/${encodeURIComponent(identifier)}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      setUserTxs(data.transactions || []);
+      setMessage('Transactions loaded successfully.');
+    } catch (error) {
+      setMessage(`Error: ${error.message}`);
+      setUserTxs([]);
+    }
+    setLoading(false);
+  };
+
+  const openTxModal = (tx) => {
+    // Formats the database timestamp so it fits into the HTML datetime-local input
+    const d = new Date(tx.created_at);
+    const pad = (num) => num.toString().padStart(2, '0');
+    const formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    
+    setTxUpdates({
+      amount: tx.amount,
+      description: tx.description,
+      created_at: formattedDate,
+      status: tx.status
+    });
+    setTxModal({ isOpen: true, tx });
+  };
+
+  const submitTxEdit = async (e, action) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/manager/edit-transaction`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: txModal.tx.id,
+          action: action, 
+          updates: action === 'edit' ? {
+            amount: parseFloat(txUpdates.amount),
+            description: txUpdates.description,
+            created_at: txUpdates.created_at,
+            status: txUpdates.status
+          } : {},
+          managerId
+        })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      setNotification({ isOpen: true, type: 'success', title: 'God Mode Executed', message: data.message });
+      setTxModal({ isOpen: false, tx: null });
+      
+      // Refresh transactions silently
+      handleLoadTxs({ preventDefault: () => {} });
+      fetchManagerData();
+    } catch(err) {
+      setNotification({ isOpen: true, type: 'error', title: 'Action Failed', message: err.message });
     }
     setLoading(false);
   };
@@ -248,7 +320,7 @@ export default function ManagerDashboard() {
 
         {/* TAB NAVIGATION */}
         <div className="flex overflow-x-auto space-x-2 mb-6 border-b border-slate-700 pb-2">
-          {['master-edit', 'onboarding', 'ledger', 'products', 'security'].map((tab) => (
+          {['onboarding', 'master-edit', 'tx-editor', 'ledger', 'products', 'security'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -334,6 +406,55 @@ export default function ManagerDashboard() {
                   <p className="text-center text-slate-500 text-[10px] mt-2">Warning: These changes bypass transaction ledgers and overwrite raw database values instantly.</p>
                 </div>
               </form>
+            )}
+          </div>
+        )}
+        {/* TAB CONTENT: TX EDITOR (NEW) */}
+        {activeTab === 'tx-editor' && (
+          <div className="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in">
+            <div className="flex justify-between items-center border-b border-slate-700 pb-4 mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Transaction God Mode</h2>
+                <p className="text-sm text-slate-400 mt-1">Silently edit dates, amounts, descriptions, or hard-delete ledger records.</p>
+              </div>
+              <button onClick={handleLoadTxs} disabled={loading || !identifier} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded transition disabled:opacity-50 text-sm">
+                Load Transactions
+              </button>
+            </div>
+
+            {userTxs.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 border-2 border-dashed border-slate-700 rounded-lg">
+                Enter a target Email or UUID at the top right and click "Load Transactions".
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-[500px]">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-slate-900 shadow z-10">
+                    <tr>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Date</th>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Description</th>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-right">Amount</th>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {userTxs.map(tx => (
+                      <tr key={tx.id} className="hover:bg-slate-700/30 transition">
+                        <td className="p-4 text-xs font-mono text-slate-400 whitespace-nowrap">{new Date(tx.created_at).toLocaleDateString()}</td>
+                        <td className="p-4 text-sm font-bold text-slate-200">{tx.description}</td>
+                        <td className="p-4 text-xs uppercase tracking-wider text-slate-500">{tx.status}</td>
+                        <td className="p-4 text-sm font-mono text-white text-right">${parseFloat(tx.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                        <td className="p-4 text-center">
+                          <button onClick={() => openTxModal(tx)} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs font-bold transition focus:outline-none">
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -524,6 +645,31 @@ export default function ManagerDashboard() {
         )}
 
       </div>
+      {/* --- CUSTOM NOTIFICATION POPUP --- */}
+      {notification.isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 sm:p-8 text-center animate-in zoom-in-95 duration-200 border-t-8 ${notification.type === 'success' ? 'border-emerald-500' : 'border-rose-500'}`}>
+            
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner ${notification.type === 'success' ? 'bg-emerald-100 text-emerald-500' : 'bg-rose-100 text-rose-500'}`}>
+              {notification.type === 'success' ? (
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+              ) : (
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+              )}
+            </div>
+            
+            <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">{notification.title}</h3>
+            <p className="text-sm text-gray-600 mb-8 leading-relaxed px-2">{notification.message}</p>
+            
+            <button 
+              onClick={() => setNotification({ ...notification, isOpen: false })} 
+              className={`w-full font-bold py-3.5 px-4 rounded-xl text-sm transition-all focus:outline-none shadow-md hover:shadow-lg ${notification.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-900 hover:bg-black text-white'}`}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
