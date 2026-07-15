@@ -87,6 +87,12 @@ export default function ClientDashboard() {
     if (savedTab) {
       setActiveTab(savedTab);
     }
+    
+    // Add this to retrieve the slider position on reload
+    const savedLimit = localStorage.getItem('capitalOne_dailyLimit');
+    if (savedLimit) {
+      setDailyLimit(Number(savedLimit));
+    }
   }, []);
 
   useEffect(() => {
@@ -603,7 +609,7 @@ export default function ClientDashboard() {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 )}
               </button>
-              <Image src="/capitalone-com-wordmark.png" alt="Logo" width={130} height={40} style={{ width: 'auto', height: '35px' }} className="object-contain" priority />
+              <Image src="/capitalone-com-wordmark.png" alt="Logo" width={114} height={35} className="w-auto h-auto object-contain" priority />
             </div>
             <div className="flex items-center gap-3 sm:gap-6">
               <button 
@@ -688,60 +694,72 @@ export default function ClientDashboard() {
             <div className={`${['checking', 'savings'].includes(activeTab) ? 'lg:col-span-7' : 'lg:col-span-12'} flex flex-col space-y-4 md:space-y-6 transition-all duration-300`}>
               
               {activeTab === 'checking' && (
-                <>
-                  <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  
+                  {/* Sinking Funds Card */}
+                  <div className="bg-[#175775] text-white rounded-2xl p-5 shadow-sm flex justify-between items-start min-h-[110px]">
+                    <div className="flex items-baseline mt-1">
+                      <span className="text-[17px] font-bold tracking-tight">Sinking Funds</span>
+                      <span className="text-[13px] text-white/80 font-normal ml-1">...{accountNumber}</span>
+                    </div>
+                    <div className="text-right flex flex-col justify-start mt-[-2px]">
+                      <div className="text-[34px] font-normal tracking-tight leading-none">
+                        ${Number(checkingBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[12px] text-white/90 mt-1.5">Available balance</div>
+                    </div>
+                  </div>
+
+                  {/* Medical Card */}
+                  <div className="bg-[#175775] text-white rounded-2xl p-5 shadow-sm flex justify-between items-start min-h-[110px]">
+                    <div className="flex items-baseline mt-1">
+                      <span className="text-[17px] font-bold tracking-tight">Medical</span>
+                      <span className="text-[13px] text-white/80 font-normal ml-1">...{savingsAccountNumber}</span>
+                    </div>
+                    <div className="text-right flex flex-col justify-start mt-[-2px]">
+                      <div className="text-[34px] font-normal tracking-tight leading-none">
+                        ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[12px] text-white/90 mt-1.5">Available balance</div>
+                    </div>
+                  </div>
+
+                  {/* QUICKSILVER Credit Card */}
+                  <div className="bg-[#4a525b] text-white rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-5 flex justify-between items-start">
+                      <div className="flex flex-col items-start">
+                        <div className="font-light text-[16px] uppercase tracking-[0.2em] mb-4 flex items-baseline mt-[-2px]">
+                          QUICKSILVER<span className="font-normal text-[12px] text-white/80 tracking-normal ml-1.5">...{creditAccounts[0]?.card_number?.slice(-4) || '7145'}</span>
+                        </div>
+                        <button className="border border-white text-white text-[13px] font-medium px-4 py-1.5 rounded-lg hover:bg-white/10 transition focus:outline-none">
+                          Get your Virtual Card
+                        </button>
+                      </div>
+                      <div className="text-right flex flex-col justify-start mt-[-4px]">
+                        <div className="text-[34px] font-normal tracking-tight leading-none">
+                          ${Number(creditAccounts[0]?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[12px] text-white/90 mt-1.5">Current balance</div>
+                      </div>
+                    </div>
                     
-                    {/* 360 Checking Card */}
-                    <div className="bg-[#186585] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
-                      <div className="flex items-baseline">
-                        <span className="text-lg md:text-xl font-semibold tracking-wide">360 Checking</span>
-                        <span className="text-white/80 text-sm md:text-base font-normal ml-2">...{accountNumber}</span>
-                      </div>
-                      <div className="flex items-start my-3 font-light">
-                        <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
-                        <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
-                          {formatBalanceParts(checkingBalance).dollars}
-                        </span>
-                        <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
-                          {formatBalanceParts(checkingBalance).cents}
-                        </span>
-                      </div>
-                      <div className="text-sm md:text-base text-white/90 font-normal">Available Balance</div>
-                    </div>
-
-                    {/* 360 Savings Card */}
-                    <div className="bg-[#0c2b4e] text-white rounded-xl p-5 md:p-6 shadow-md relative overflow-hidden transition-all hover:shadow-lg">
-                      <div className="flex items-baseline">
-                        <span className="text-lg md:text-xl font-semibold tracking-wide">360 Savings</span>
-                        <span className="text-white/80 text-sm md:text-base font-normal ml-2">...{savingsAccountNumber}</span>
-                      </div>
-                      <div className="flex items-start my-3 font-light">
-                        <span className="text-xl md:text-2xl font-normal mt-1.5 mr-0.5">$</span>
-                        <span className="text-4xl md:text-5xl font-normal tracking-tight leading-none">
-                          {formatBalanceParts(savingsBalance).dollars}
-                        </span>
-                        <span className="text-xl md:text-2xl font-normal mt-1.5 ml-0.5">
-                          {formatBalanceParts(savingsBalance).cents}
-                        </span>
-                      </div>
-                      <div className="text-sm md:text-base text-white/90 font-normal">Available Balance</div>
-                    </div>
-
-                    <button onClick={() => handleSecureAction('transfer')} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3.5 rounded-xl text-sm transition shadow-sm focus:outline-none">
-                      Transfer Funds
-                    </button>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow flex-1 flex flex-col min-h-[300px] animate-in fade-in duration-300">
-                    <div className="p-5 md:p-6 pb-2 border-b border-gray-50 flex justify-between items-center">
-                      <h3 className="text-lg font-bold text-gray-800">Recent Activity</h3>
-                      <button onClick={() => setActiveTab('activity')} className="text-sm font-bold text-[#0071ce] hover:underline focus:outline-none">View All</button>
-                    </div>
-                    <div className="flex-1 flex flex-col">
-                      {renderTransactionList(5)}
+                    <div className="bg-[#363c43] px-5 py-3.5 flex items-center gap-3 cursor-pointer">
+                      <svg className="w-5 h-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      <span className="font-medium text-[14px]">Finish account setup</span>
                     </div>
                   </div>
-                </>
+
+                  {/* Transfer Funds Button */}
+                  <button onClick={() => handleSecureAction('transfer')} className="bg-[#0071ce] border border-[#005a8f] text-white rounded-2xl p-4 shadow-sm mt-2 flex items-center justify-center gap-3 hover:bg-[#005a8f] transition w-full focus:outline-none">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    <span className="font-bold text-[17px]">Transfer Funds</span>
+                  </button>
+
+                </div>
               )}
 
               {activeTab === 'savings' && (
@@ -1115,67 +1133,82 @@ export default function ClientDashboard() {
                   </div>
 
                   <div className="border-b border-gray-100 pb-8">
-                    <div className="flex justify-between items-center mb-4">
+                    {/* Responsive Limits Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                       <div>
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Account Limits & Tier Adjustment</h3>
                         <p className="text-xs text-gray-500 mt-0.5">Adjust your daily outbound ACH and Wire transfer limit.</p>
                       </div>
-                      <div className="text-right">
+                      <div className="w-full sm:w-auto bg-blue-50 sm:bg-transparent p-4 sm:p-0 rounded-lg text-left sm:text-right flex items-center justify-between sm:block border border-blue-100 sm:border-transparent">
                         <span className="text-xs text-gray-500 font-bold block">Daily Outbound Limit</span>
                         <span className="text-2xl font-black text-[#004879] font-mono">${Number(dailyLimit).toLocaleString()}</span>
                       </div>
                     </div>
+                    
                     <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                       <input 
-                        type="range" min="1000" max="50000" step="1000" value={dailyLimit} onChange={(e) => setDailyLimit(Number(e.target.value))}
+                        type="range" min="1000" max="50000" step="1000" value={dailyLimit} 
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setDailyLimit(val);
+                          localStorage.setItem('capitalOne_dailyLimit', val); // Saves the state
+                        }}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#0071ce]"
                       />
-                      <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 font-mono">
-                        <span>$1,000 (Standard)</span>
-                        <span>$25,000 (Premier)</span>
-                        <span>$50,000 (Private Wealth)</span>
+                      <div className="flex justify-between text-[10px] sm:text-xs font-bold text-gray-400 mt-5 font-mono gap-2">
+                        <span className="text-center sm:text-left leading-tight">$1,000<br className="sm:hidden"/><span className="font-normal">(Standard)</span></span>
+                        <span className="text-center leading-tight">$25,000<br className="sm:hidden"/><span className="font-normal">(Premier)</span></span>
+                        <span className="text-center sm:text-right leading-tight">$50,000<br className="sm:hidden"/><span className="font-normal">(Private Wealth)</span></span>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                    {/* Responsive Device Sessions Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                       <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Active & Recent Device Sessions</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">Review devices currently or recently logged into your account.</p>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Active Device Sessions</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Review devices logged into your account.</p>
                       </div>
-                      <div className="flex items-center bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg">
-                        <span className="text-xs font-bold text-blue-900 mr-2">Auto-Signout In:</span>
-                        <span className="text-sm font-black font-mono text-[#0071ce]">{formatCountdown(logoutCountdown)}</span>
-                        <button onClick={() => setLogoutCountdown(900)} className="ml-2 text-[10px] bg-white border border-blue-200 text-blue-700 font-bold px-1.5 py-0.5 rounded hover:bg-blue-100 transition" title="Reset Timer">⏳ Reset</button>
+                      <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start bg-blue-50 border border-blue-100 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-lg">
+                        <div className="flex items-center">
+                          <span className="text-xs font-bold text-blue-900 mr-2">Auto-Signout In:</span>
+                          <span className="text-sm font-black font-mono text-[#0071ce]">{formatCountdown(logoutCountdown)}</span>
+                        </div>
+                        <button onClick={() => setLogoutCountdown(900)} className="ml-4 sm:ml-2 text-[10px] bg-white border border-blue-200 text-blue-700 font-bold px-2 py-1 rounded hover:bg-blue-100 transition" title="Reset Timer">⏳ Reset</button>
                       </div>
                     </div>
 
+                    {/* Responsive Session Cards */}
                     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 mb-4 bg-white">
                       {deviceSessions.map((session) => (
-                        <div key={session.id} className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${session.isCurrent ? 'bg-emerald-50/40' : 'hover:bg-gray-50'}`}>
-                          <div className="flex items-center space-x-3 min-w-0">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg ${session.isCurrent ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-600'}`}>
+                        <div key={session.id} className={`p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${session.isCurrent ? 'bg-emerald-50/40' : 'hover:bg-gray-50'}`}>
+                          <div className="flex items-start sm:items-center space-x-4 w-full">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg mt-1 sm:mt-0 ${session.isCurrent ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-600'}`}>
                               {session.type === 'mobile' ? '📱' : '💻'}
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-gray-800 truncate">{session.device}</span>
+                            <div className="w-full min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="font-bold text-sm text-gray-800 break-words">{session.device}</span>
                                 {session.isCurrent && (
                                   <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shrink-0">Current Device</span>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500 truncate mt-0.5">{session.location} • <span className="font-medium text-gray-600">{session.status}</span></div>
+                              <div className="text-xs text-gray-500 leading-relaxed break-words">
+                                {session.location} <br className="sm:hidden"/>
+                                <span className="hidden sm:inline"> • </span>
+                                <span className="font-medium text-gray-600">{session.status}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="shrink-0 w-full sm:w-auto text-right">
+                          <div className="w-full sm:w-auto flex justify-end shrink-0 mt-2 sm:mt-0 border-t border-gray-100 sm:border-0 pt-3 sm:pt-0">
                             {session.isCurrent ? (
                               <span className="text-xs font-bold text-emerald-600 inline-flex items-center">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
                                 Active Session
                               </span>
                             ) : (
-                              <button onClick={() => handleRevokeDevice(session.id)} className="w-full sm:w-auto text-xs font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 px-3 py-1.5 rounded-lg transition">
+                              <button onClick={() => handleRevokeDevice(session.id)} className="w-full sm:w-auto text-xs font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 px-4 py-2 rounded-lg transition">
                                 Revoke Access
                               </button>
                             )}
@@ -1188,12 +1221,6 @@ export default function ClientDashboard() {
                       <p className="text-[11px] text-gray-400 leading-relaxed max-w-lg">
                         <span className="font-bold text-gray-600">Security Notice:</span> Revoking a device immediately invalidates its JWT authentication token. If you recognize an unfamiliar device, revoke access immediately and update your password at a branch.
                       </p>
-                      {deviceSessions.length > 1 && (
-                        <button onClick={() => handleRevokeDevice('all-others')} className="w-full sm:w-auto shrink-0 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center justify-center shadow-sm">
-                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                          Revoke All Other Devices
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>

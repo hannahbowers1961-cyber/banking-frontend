@@ -99,7 +99,7 @@ export default function LoginPage() {
       <header className="sticky top-0 z-[100] w-full bg-white shadow-md border-b border-gray-200">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Image src="/capitalone-com-wordmark.png" alt="Logo" width={130} height={40} style={{ width: 'auto', height: '35px' }} className="object-contain" priority />
+            <Image src="/capitalone-com-wordmark.png" alt="Logo" width={114} height={35} className="w-auto h-auto object-contain" priority />
           </div>
           <div className="flex items-center space-x-6 text-sm text-gray-700">
             <div className="hidden md:flex items-center cursor-pointer hover:underline">
