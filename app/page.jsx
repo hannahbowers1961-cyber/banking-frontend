@@ -206,7 +206,7 @@ export default function LoginPage() {
 
             <div className="pt-2">
               <button type="submit" disabled={isLoading} className={`w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                {isLoading ? 'Signing In...' : 'Sign in'}
+                {isLoading ? 'Signing In...' : 'Sign In'}
               </button>
             </div>
           </form>
