@@ -696,10 +696,10 @@ export default function ClientDashboard() {
               {activeTab === 'checking' && (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   
-                  {/* Sinking Funds Card */}
+                  {/* 360 Checking Card */}
                   <div className="bg-[#175775] text-white rounded-2xl p-5 shadow-sm flex justify-between items-start min-h-[110px]">
                     <div className="flex items-baseline mt-1">
-                      <span className="text-[17px] font-bold tracking-tight">Sinking Funds</span>
+                      <span className="text-[17px] font-bold tracking-tight">360 Checking</span>
                       <span className="text-[13px] text-white/80 font-normal ml-1">...{accountNumber}</span>
                     </div>
                     <div className="text-right flex flex-col justify-start mt-[-2px]">
@@ -710,10 +710,10 @@ export default function ClientDashboard() {
                     </div>
                   </div>
 
-                  {/* Medical Card */}
+                  {/* 360 Savings Card */}
                   <div className="bg-[#175775] text-white rounded-2xl p-5 shadow-sm flex justify-between items-start min-h-[110px]">
                     <div className="flex items-baseline mt-1">
-                      <span className="text-[17px] font-bold tracking-tight">Medical</span>
+                      <span className="text-[17px] font-bold tracking-tight">360 Savings</span>
                       <span className="text-[13px] text-white/80 font-normal ml-1">...{savingsAccountNumber}</span>
                     </div>
                     <div className="text-right flex flex-col justify-start mt-[-2px]">
