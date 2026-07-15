@@ -17,10 +17,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // OTP State
-  const [codeSent, setCodeSent] = useState(false);
-  const [pinCode, setPinCode] = useState('');
-
   // Load remembered username on startup
   useEffect(() => {
     const savedUsername = localStorage.getItem('remembered_username');
@@ -96,63 +92,6 @@ export default function LoginPage() {
     }
   };
 
-  // --- HANDLE SENDING OTP ---
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    setServerError('');
-    
-    if (username.trim() === '') {
-      setErrors({ ...errors, username: true });
-      return;
-    }
-
-    setIsLoading(true);
-
-    // 1. Resolve Username to real Email so Supabase knows where to send it
-    const { email, error: lookupErr } = await lookupUserCredentials(username);
-    if (lookupErr) { 
-      setServerError(lookupErr); 
-      setIsLoading(false); 
-      return; 
-    }
-
-    // 2. Send the OTP
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: { shouldCreateUser: false } 
-    });
-
-    if (error) {
-      setServerError(`Error: ${error.message}`);
-    } else {
-      setCodeSent(true); // Switch the UI to the PIN screen
-    }
-    setIsLoading(false);
-  };
-
-  // --- HANDLE VERIFYING OTP ---
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setServerError('');
-    setIsLoading(true);
-
-    const { email } = await lookupUserCredentials(username);
-
-    const { data: { session }, error } = await supabase.auth.verifyOtp({
-      email: email,
-      token: pinCode,
-      type: 'email',
-    });
-
-    if (error) {
-      setServerError("Invalid or expired code. Please try again.");
-      setIsLoading(false);
-    } else if (session) {
-      if (rememberMe) localStorage.setItem('remembered_username', username);
-      router.push('/dashboard');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white font-sans text-gray-800 flex flex-col">
       
@@ -197,9 +136,7 @@ export default function LoginPage() {
           </div>
 
           {/* CREDENTIALS SCREEN */}
-          <h1 className="text-center text-[22px] text-gray-900 mb-6 tracking-wide">
-            {!codeSent ? "Sign In" : "Enter Security Code"}
-          </h1>
+          <h1 className="text-center text-[22px] text-gray-900 mb-6 tracking-wide">Sign In</h1>
 
           {serverError && (
             <div className="mb-6 p-3 bg-red-50 border border-red-200 text-[#c60f13] text-sm rounded flex items-center">
@@ -208,103 +145,71 @@ export default function LoginPage() {
             </div>
           )}
 
-          {!codeSent ? (
-            /* --- PASSWORD MODE --- */
-            <form onSubmit={handleSignIn} className="flex flex-col space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Username / Email</label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-3 text-gray-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-                  </div>
-                  <input 
-                    type="text" 
-                    value={username}
-                    onChange={(e) => {
-                      setUsername(e.target.value);
-                      if (errors.username) setErrors({ ...errors, username: false });
-                    }}
-                    className={`w-full pl-10 pr-4 py-2.5 rounded border focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors ${errors.username ? 'border-[#c60f13]' : 'border-gray-400'}`}
-                    disabled={isLoading}
-                  />
+          <form onSubmit={handleSignIn} className="flex flex-col space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Username / Email</label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3 text-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                 </div>
-                {errors.username && <p className="text-[#c60f13] text-xs mt-1">This field is required.</p>}
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errors.username) setErrors({ ...errors, username: false });
+                  }}
+                  className={`w-full pl-10 pr-4 py-2.5 rounded border focus:outline-none focus:ring-1 focus:ring-gray-400 ${errors.username ? 'border-[#c60f13]' : 'border-gray-400'}`}
+                  disabled={isLoading}
+                />
               </div>
+              {errors.username && <p className="text-[#c60f13] text-xs mt-1">This field is required.</p>}
+            </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Password</label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-3 text-gray-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-                  </div>
-                  <input 
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (errors.password) setErrors({ ...errors, password: false });
-                    }}
-                    className={`w-full pl-10 pr-10 py-2.5 rounded border focus:outline-none focus:ring-1 focus:ring-[#0071ce] font-sans transition-colors ${errors.password ? 'border-[#c60f13]' : 'border-gray-400'}`}
-                    disabled={isLoading}
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 text-gray-700 hover:text-black focus:outline-none">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Password</label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3 text-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
                 </div>
-                {errors.password && <p className="text-[#c60f13] text-xs mt-1">This field is required.</p>}
-              </div>
-
-              {/* REMEMBER ME CHECKBOX */}
-              <div className="flex items-center pt-1">
                 <input 
-                  type="checkbox" 
-                  id="remember" 
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-5 h-5 border-gray-400 rounded text-[#00619b] focus:ring-0 cursor-pointer" 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) setErrors({ ...errors, password: false });
+                  }}
+                  className={`w-full pl-10 pr-10 py-2.5 rounded border focus:outline-none focus:ring-1 focus:ring-gray-400 font-sans ${errors.password ? 'border-[#c60f13]' : 'border-gray-400'}`}
+                  disabled={isLoading}
                 />
-                <label htmlFor="remember" className="ml-2 text-[15px] text-gray-900 cursor-pointer">Remember Me</label>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 text-gray-700 hover:text-black focus:outline-none">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
               </div>
+              {errors.password && <p className="text-[#c60f13] text-xs mt-1">This field is required.</p>}
+            </div>
 
-              <div className="pt-2 flex flex-col space-y-3">
-                {/* Standard Password Login Button */}
-                <button type="submit" disabled={isLoading} className={`w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                  {isLoading ? 'Signing In...' : 'Sign in'}
-                </button>
-                
-                {/* NEW: OTP Trigger Button */}
-                <button type="button" onClick={handleSendOtp} disabled={isLoading} className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-900 font-bold py-3 rounded text-[15px] transition-colors">
-                  Sign in with Email Code
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* --- OTP PIN MODE --- */
-            <form onSubmit={handleVerifyOtp} className="flex flex-col space-y-5 animate-in fade-in">
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1 text-center">6-Digit Security Code</label>
-                <input 
-                  type="text" maxLength={6} value={pinCode} placeholder="000000"
-                  onChange={(e) => { setPinCode(e.target.value); setServerError(''); }}
-                  className="w-full border border-gray-400 rounded px-3 py-4 text-center font-mono text-2xl tracking-[0.5em] focus:outline-none focus:ring-1 focus:ring-[#0071ce] transition-colors bg-white text-gray-900" required
-                />
-                <p className="text-xs text-gray-500 text-center mt-3">We sent a secure code to the email associated with your username.</p>
-              </div>
+            {/* REMEMBER ME CHECKBOX */}
+            <div className="flex items-center pt-1">
+              <input 
+                type="checkbox" 
+                id="remember" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-5 h-5 border-gray-400 rounded text-[#00619b] focus:ring-0 cursor-pointer" 
+              />
+              <label htmlFor="remember" className="ml-2 text-[15px] text-gray-900 cursor-pointer">Remember Me</label>
+            </div>
 
-              <div className="pt-2">
-                <button type="submit" disabled={isLoading || pinCode.length !== 6} className="w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors shadow-sm focus:outline-none disabled:opacity-50">
-                  {isLoading ? "Verifying..." : "Verify & Sign In"}
-                </button>
-              </div>
-              
-              <button type="button" onClick={() => setCodeSent(false)} className="text-sm font-bold text-[#0071ce] hover:underline text-center mt-2">
-                Use password instead
+            <div className="pt-2">
+              <button type="submit" disabled={isLoading} className={`w-full bg-[#0071ce] hover:bg-[#005a8f] text-white font-bold py-3 rounded text-[15px] transition-colors ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                {isLoading ? 'Signing In...' : 'Sign in'}
               </button>
-            </form>
-          )}
+            </div>
+          </form>
 
           {/* Passkey Box */}
           <div className="mt-8 border border-gray-200 rounded p-4 flex flex-col shadow-sm">
