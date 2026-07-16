@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 // Closest free alternative to Capital One's custom "Optimist" font
@@ -32,6 +33,7 @@ export default function RootLayout({
       {/* Adding capitalOneFont.className here forces the entire app to use it by default */}
       <body className={`${capitalOneFont.className} min-h-full flex flex-col`}>
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
